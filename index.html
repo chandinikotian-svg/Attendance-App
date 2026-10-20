@@ -297,11 +297,9 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <div style="font-size:13px;color:var(--l-text);line-height:1.5;">Raise regularization request to exempt this day from penalization policy.</div>
     </div>
 
-    <!-- Clock in/out times (optional) -->
-    <div class="field-row" style="margin-bottom:14px;">
-      <div class="field"><label>Clock-in time</label><input type="time" id="rIn"></div>
-      <div class="field"><label>Clock-out time</label><input type="time" id="rOut"></div>
-    </div>
+    <!-- Hidden fields to store times from log -->
+    <input type="hidden" id="rIn">
+    <input type="hidden" id="rOut">
 
     <!-- Reason dropdown -->
     <div class="field" style="margin-bottom:14px;">
@@ -809,23 +807,27 @@ async function fsAdd(collection,data){
 }
 
 // High-level storage API
+// Sessions stored as: sessions/{key}
+// Lists stored as: {key}/{docId}
 async function dbGet(k){
-  const r=await fsGet('7edge/attendance/'+k);
+  const safeKey=k.replace(/[^a-zA-Z0-9_]/g,'_');
+  const r=await fsGet('sessions/'+safeKey);
   if(r)return r;
   return lsG(k);
 }
 async function dbSet(k,v){
-  await fsSet('7edge/attendance/'+k,v);
+  const safeKey=k.replace(/[^a-zA-Z0-9_]/g,'_');
+  await fsSet('sessions/'+safeKey,v);
   lsS(k,v);
 }
 async function listGet(k){
-  const r=await fsList('7edge/attendance/'+k);
+  const r=await fsList(k);
   if(r&&r.length)return r;
   return lsG(k+'_list')||[];
 }
 async function listAdd(k,v){
   const id=Date.now().toString();
-  const success=await fsAdd('7edge/attendance/'+k,{...v,id,createdAt:Date.now()});
+  const success=await fsAdd(k,{...v,id,createdAt:Date.now()});
   if(!success){
     const l=lsG(k+'_list')||[];
     l.unshift({id,...v,createdAt:Date.now()});
@@ -833,19 +835,29 @@ async function listAdd(k,v){
   }
 }
 async function listUpdate(k,id,updates){
-  // Find the document and update it
   try{
-    const docs=await fsList('7edge/attendance/'+k);
-    const doc=docs.find(d=>d.id===id||d.id===id);
+    const docs=await fsList(k);
+    const doc=docs.find(d=>d.id===id);
     if(doc){
-      await fsSet('7edge/attendance/'+k+'/'+id,{...doc,...updates});
+      // Find the Firestore document name
+      const r=await fetch(FB_URL+'/'+k+'?pageSize=200');
+      const d=await r.json();
+      const fsDoc2=( d.documents||[]).find(fd=>{
+        const fields=fsDoc(fd.fields||{});
+        return fields.id===id;
+      });
+      if(fsDoc2){
+        const docName=fsDoc2.name.split('/').pop();
+        await fsSet(k+'/'+docName,{...doc,...updates});
+      }
     }
-  }catch{}
+  }catch(e){console.error('listUpdate error:',e);}
   // Also update localStorage
   const l=lsG(k+'_list')||[];
   const idx=l.findIndex(r=>r.id===id);
   if(idx!==-1){l[idx]={...l[idx],...updates};lsS(k+'_list',l);}
 }
+
 
 function fmt(d){return d instanceof Date?d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}):'--:--';}
 function today(){return new Date().toISOString().split('T')[0];}
