@@ -491,16 +491,17 @@ function showApp(){
   renderDateHeader();
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
-  // Load session with 3 second timeout fallback so clock row always renders
-  const sessionPromise = loadSession();
-  const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
-  Promise.race([sessionPromise, timeoutPromise]).then(()=>{
+  // Always hide loading overlay and show clock after max 2 seconds
+  function finishLoading(){
     renderClockRow();
     checkNotifications();
-    // Hide loading overlay
-    const overlay = document.getElementById('loadingOverlay');
-    if(overlay) overlay.style.display = 'none';
-  });
+    const overlay=document.getElementById('loadingOverlay');
+    if(overlay)overlay.style.display='none';
+  }
+  // Try to load session but don't wait more than 2 seconds
+  let loaded=false;
+  setTimeout(()=>{ if(!loaded){loaded=true; finishLoading();} }, 2000);
+  loadSession().then(()=>{ if(!loaded){loaded=true; finishLoading();} }).catch(()=>{ if(!loaded){loaded=true; finishLoading();} });
   renderLog();renderRequests();
   if(currentEmp.isManager)renderInbox();
   // Auto-refresh data every 15 seconds — no sign out needed
