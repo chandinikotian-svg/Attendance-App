@@ -297,9 +297,17 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <div style="font-size:13px;color:var(--l-text);line-height:1.5;">Raise regularization request to exempt this day from penalization policy.</div>
     </div>
 
-    <!-- Hidden fields to store times from log -->
-    <input type="hidden" id="rIn">
-    <input type="hidden" id="rOut">
+    <!-- Editable clock in/out times -->
+    <div class="field-row" style="margin-bottom:14px;">
+      <div class="field">
+        <label>Clock-in time</label>
+        <input type="time" id="rIn" style="width:100%;padding:10px 12px;border:1px solid var(--l-border);border-radius:8px;font-size:14px;color:var(--l-text);background:var(--l-surface);outline:none;font-family:inherit;">
+      </div>
+      <div class="field">
+        <label>Clock-out time</label>
+        <input type="time" id="rOut" style="width:100%;padding:10px 12px;border:1px solid var(--l-border);border-radius:8px;font-size:14px;color:var(--l-text);background:var(--l-surface);outline:none;font-family:inherit;">
+      </div>
+    </div>
 
     <!-- Reason dropdown -->
     <div class="field" style="margin-bottom:14px;">
