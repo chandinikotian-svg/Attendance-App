@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>7EDGE Attendance</title>
-<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --navy:#1F2957;--navy2:#263166;--navy3:#2E3A75;
@@ -485,22 +485,11 @@ function showApp(){
   renderDateHeader();
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
-  // Step 1 — Load from localStorage INSTANTLY (no waiting)
-  const cachedSession = lsG('session_'+currentEmp.email.replace(/[@.]/g,'_'));
-  if(cachedSession?.on && cachedSession?.t){
-    clockedIn=true;
-    clockInTime=new Date(cachedSession.t);
-  }
-  // Show the app immediately
-  renderClockRow();
-  checkNotifications();
-  const overlay=document.getElementById('loadingOverlay');
-  if(overlay)overlay.style.display='none';
-  // Step 2 — Sync with Firebase in background (no waiting)
+  // Load session instantly from localStorage — zero delay
   loadSession().then(()=>{
     renderClockRow();
     checkNotifications();
-  }).catch(()=>{});
+  });
   // Render immediately from localStorage cache — instant display
   renderLog();
   renderRequests();
@@ -765,156 +754,20 @@ function showPane(n){
   if(currentEmp?.isManager)renderInbox();
 }
 
-// ── Storage — Firebase Firestore (cross-device, real-time) ────
-const FB_URL='https://firestore.googleapis.com/v1/projects/edge-attendance-5e1c1/databases/(default)/documents';
-
+// ── Storage — localStorage (instant, reliable) ──────────────
 function lsG(k){try{return JSON.parse(localStorage.getItem('7e_'+k))||null;}catch{return null;}}
 function lsS(k,v){try{localStorage.setItem('7e_'+k,JSON.stringify(v));}catch{}}
 
-// Convert Firestore value format to plain JS
-function fsVal(v){
-  if(!v)return null;
-  if(v.stringValue!==undefined)return v.stringValue;
-  if(v.integerValue!==undefined)return parseInt(v.integerValue);
-  if(v.doubleValue!==undefined)return v.doubleValue;
-  if(v.booleanValue!==undefined)return v.booleanValue;
-  if(v.nullValue!==undefined)return null;
-  if(v.mapValue)return fsDoc(v.mapValue.fields||{});
-  return null;
-}
-function fsDoc(fields){const o={};for(const k in fields)o[k]=fsVal(fields[k]);return o;}
-
-// Convert plain JS to Firestore value format
-function toFsVal(v){
-  if(v===null||v===undefined)return{nullValue:null};
-  if(typeof v==='boolean')return{booleanValue:v};
-  if(typeof v==='number')return Number.isInteger(v)?{integerValue:v}:{doubleValue:v};
-  if(typeof v==='string')return{stringValue:v};
-  if(typeof v==='object'){
-    const fields={};
-    for(const k in v)fields[k]=toFsVal(v[k]);
-    return{mapValue:{fields}};
-  }
-  return{stringValue:String(v)};
-}
-function toFsDoc(obj){const fields={};for(const k in obj)fields[k]=toFsVal(obj[k]);return{fields};}
-
-// Fetch with 5 second timeout — never hangs
-async function fetchWithTimeout(url, options={}, ms=5000){
-  const controller=new AbortController();
-  const id=setTimeout(()=>controller.abort(), ms);
-  try{
-    const r=await fetch(url,{...options, signal:controller.signal});
-    clearTimeout(id);
-    return r;
-  }catch(e){
-    clearTimeout(id);
-    throw e;
-  }
-}
-
-async function fsGet(path){
-  try{
-    const r=await fetchWithTimeout(FB_URL+'/'+path);
-    if(!r.ok)return null;
-    const d=await r.json();
-    return d.fields?fsDoc(d.fields):null;
-  }catch{return null;}
-}
-async function fsSet(path,data){
-  try{
-    await fetchWithTimeout(FB_URL+'/'+path+'?updateMask.fieldPaths='+Object.keys(data).join('&updateMask.fieldPaths='),{
-      method:'PATCH',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(toFsDoc(data))
-    });
-  }catch{}
-}
-async function fsList(collection){
-  try{
-    const r=await fetchWithTimeout(FB_URL+'/'+collection+'?orderBy=createdAt+desc&pageSize=200');
-    if(!r.ok)return[];
-    const d=await r.json();
-    return(d.documents||[]).map(doc=>{
-      const id=doc.name.split('/').pop();
-      return{id,...fsDoc(doc.fields||{})};
-    });
-  }catch{return[];}
-}
-async function fsAdd(collection,data){
-  try{
-    await fetchWithTimeout(FB_URL+'/'+collection,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(toFsDoc(data))
-    });
-    return true;
-  }catch{return false;}
-}
-
-// High-level storage API
-// Sessions stored as: sessions/{key}
-// Lists stored as: {key}/{docId}
-async function dbGet(k){
-  const safeKey=k.replace(/[^a-zA-Z0-9_]/g,'_');
-  // Try Firebase with timeout, fall back to localStorage
-  try{
-    const r=await Promise.race([
-      fsGet('sessions/'+safeKey),
-      new Promise((_,reject)=>setTimeout(()=>reject('timeout'),3000))
-    ]);
-    if(r){lsS(k,r);return r;}
-  }catch{}
-  return lsG(k);
-}
-async function dbSet(k,v){
-  const safeKey=k.replace(/[^a-zA-Z0-9_]/g,'_');
-  await fsSet('sessions/'+safeKey,v);
-  lsS(k,v);
-}
-async function listGet(k){
-  // Return localStorage immediately for speed
-  const cached = lsG(k+'_list')||[];
-  // Try Firebase but with short timeout
-  try{
-    const r=await Promise.race([
-      fsList(k),
-      new Promise((_,reject)=>setTimeout(()=>reject('timeout'),4000))
-    ]);
-    if(r&&r.length){
-      // Update localStorage cache with fresh Firebase data
-      lsS(k+'_list', r);
-      return r;
-    }
-  }catch{}
-  return cached;
-}
+async function dbGet(k){return lsG(k);}
+async function dbSet(k,v){lsS(k,v);}
+async function listGet(k){return lsG(k+'_list')||[];}
 async function listAdd(k,v){
   const id=Date.now().toString();
-  const success=await fsAdd(k,{...v,id,createdAt:Date.now()});
-  if(!success){
-    const l=lsG(k+'_list')||[];
-    l.unshift({id,...v,createdAt:Date.now()});
-    lsS(k+'_list',l);
-  }
+  const l=lsG(k+'_list')||[];
+  l.unshift({id,...v,createdAt:Date.now()});
+  lsS(k+'_list',l);
 }
 async function listUpdate(k,id,updates){
-  try{
-    const docs=await fsList(k);
-    const doc=docs.find(d=>d.id===id);
-    if(doc){
-      // Find the Firestore document name
-      const r=await fetch(FB_URL+'/'+k+'?pageSize=200');
-      const d=await r.json();
-      const fsDoc2=( d.documents||[]).find(fd=>{
-        const fields=fsDoc(fd.fields||{});
-        return fields.id===id;
-      });
-      if(fsDoc2){
-        const docName=fsDoc2.name.split('/').pop();
-        await fsSet(k+'/'+docName,{...doc,...updates});
-      }
-    }
-  }catch(e){console.error('listUpdate error:',e);}
-  // Also update localStorage
   const l=lsG(k+'_list')||[];
   const idx=l.findIndex(r=>r.id===id);
   if(idx!==-1){l[idx]={...l[idx],...updates};lsS(k+'_list',l);}
