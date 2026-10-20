@@ -423,7 +423,6 @@ const MANAGERS=new Set(Object.values(ORG).map(e=>e.managerEmail).filter(Boolean)
 let db=null,currentEmp=null,clockedIn=false,clockInTime=null,durTimer=null;
 
 async function init(){
-  try{db=await claude.use('db');}catch{}
   const saved=lsG('currentEmp');
   if(saved){currentEmp=saved;showApp();return;}
   initGoogleSignIn();
@@ -589,10 +588,7 @@ async function loadSession(){
 async function renderLog(){
   if(!currentEmp)return;
   const entries=await listGet('entries');
-  // Always force fresh read for requests so approval status is current
-  let reqs=[];
-  if(db){try{const s=await db.collection('att/shared/requests').orderBy('createdAt','desc').limit(200).get();reqs=s.docs.map(d=>({id:d.id,...d.data()}));}catch{}}
-  if(!reqs.length)reqs=lsG('requests_list')||[];
+  const reqs=await listGet('requests');
   const myEntries=entries.filter(e=>e.emp===currentEmp.email);
   const myReqs=reqs.filter(r=>r.emp===currentEmp.email);
   const approvedDates=new Set(myReqs.filter(r=>r.status==='approved').map(r=>r.date));
@@ -659,10 +655,7 @@ async function submitReg(){
 
 async function renderRequests(){
   if(!currentEmp)return;
-  // Always force fresh read from shared DB
-  let reqs=[];
-  if(db){try{const s=await db.collection('att/shared/requests').orderBy('createdAt','desc').limit(200).get();reqs=s.docs.map(d=>({id:d.id,...d.data()}));}catch{}}
-  if(!reqs.length)reqs=lsG('requests_list')||[];
+  const reqs=await listGet('requests');
   const myReqs=reqs.filter(r=>r.emp===currentEmp.email).sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
   const pending=myReqs.filter(r=>r.status==='pending').length;
   const badge=document.getElementById('reqBadge');
@@ -713,35 +706,16 @@ async function handleInbox(reqId,action){
   if(btn_a)btn_a.disabled=true;
   if(btn_r)btn_r.disabled=true;
 
-  let empName='';
-  // Try shared DB first (this is the only reliable cross-device store)
-  if(db){
-    try{
-      const col=db.collection('att/shared/requests');
-      const snap=await col.orderBy('createdAt','desc').limit(200).get();
-      const doc=snap.docs.find(d=>d.data().id===reqId);
-      if(doc){
-        empName=doc.data().empName||'';
-        await col.doc(doc.id).set({
-          ...doc.data(),
-          status:action,
-          mgrComment:comment,
-          decidedAt:new Date().toISOString(),
-          createdAt:doc.data().createdAt
-        });
-      }
-    }catch(e){console.error('DB error:',e);}
-  }
-  // Also update localStorage as fallback
-  const reqs=lsG('requests_list')||[];
-  const idx=reqs.findIndex(r=>r.id===reqId);
-  if(idx!==-1){
-    empName=empName||reqs[idx].empName||'';
-    reqs[idx].status=action;
-    reqs[idx].mgrComment=comment;
-    reqs[idx].decidedAt=new Date().toISOString();
-    lsS('requests_list',reqs);
-  }
+  // Get employee name before updating
+  const allReqs=await listGet('requests');
+  const thisReq=allReqs.find(r=>r.id===reqId);
+  const empName=thisReq?.empName||'';
+  // Update status in shared store — visible to all devices immediately
+  await listUpdate('requests',reqId,{
+    status:action,
+    mgrComment:comment,
+    decidedAt:new Date().toISOString()
+  });
 
   showToast('Request '+(action==='approved'?'approved ✓':'rejected ✗')+(empName?' for '+empName:''));
   // Refresh everything immediately
@@ -763,12 +737,115 @@ function showPane(n){
   if(currentEmp?.isManager)renderInbox();
 }
 
+// ── Storage — Firebase Firestore (cross-device, real-time) ────
+const FB_URL='https://firestore.googleapis.com/v1/projects/edge-attendance-5e1c1/databases/(default)/documents';
+
 function lsG(k){try{return JSON.parse(localStorage.getItem('7e_'+k))||null;}catch{return null;}}
 function lsS(k,v){try{localStorage.setItem('7e_'+k,JSON.stringify(v));}catch{}}
-async function dbGet(k){if(db){try{const s=await(await db.doc('att/shared/'+k)).get();return s.exists?s.data():null;}catch{}}return lsG(k);}
-async function dbSet(k,v){if(db){try{await(await db.doc('att/shared/'+k)).set(v);return;}catch{}}lsS(k,v);}
-async function listGet(k){if(db){try{const s=await db.collection('att/shared/'+k).orderBy('createdAt','desc').limit(200).get();return s.docs.map(d=>({id:d.id,...d.data()}));}catch{}}return lsG(k+'_list')||[];}
-async function listAdd(k,v){const id=Date.now().toString();if(db){try{await db.collection('att/shared/'+k).doc(id).set({...v,createdAt:Date.now()});return;}catch{}}const l=lsG(k+'_list')||[];l.unshift({id,...v,createdAt:Date.now()});lsS(k+'_list',l);}
+
+// Convert Firestore value format to plain JS
+function fsVal(v){
+  if(!v)return null;
+  if(v.stringValue!==undefined)return v.stringValue;
+  if(v.integerValue!==undefined)return parseInt(v.integerValue);
+  if(v.doubleValue!==undefined)return v.doubleValue;
+  if(v.booleanValue!==undefined)return v.booleanValue;
+  if(v.nullValue!==undefined)return null;
+  if(v.mapValue)return fsDoc(v.mapValue.fields||{});
+  return null;
+}
+function fsDoc(fields){const o={};for(const k in fields)o[k]=fsVal(fields[k]);return o;}
+
+// Convert plain JS to Firestore value format
+function toFsVal(v){
+  if(v===null||v===undefined)return{nullValue:null};
+  if(typeof v==='boolean')return{booleanValue:v};
+  if(typeof v==='number')return Number.isInteger(v)?{integerValue:v}:{doubleValue:v};
+  if(typeof v==='string')return{stringValue:v};
+  if(typeof v==='object'){
+    const fields={};
+    for(const k in v)fields[k]=toFsVal(v[k]);
+    return{mapValue:{fields}};
+  }
+  return{stringValue:String(v)};
+}
+function toFsDoc(obj){const fields={};for(const k in obj)fields[k]=toFsVal(obj[k]);return{fields};}
+
+async function fsGet(path){
+  try{
+    const r=await fetch(FB_URL+'/'+path);
+    if(!r.ok)return null;
+    const d=await r.json();
+    return d.fields?fsDoc(d.fields):null;
+  }catch{return null;}
+}
+async function fsSet(path,data){
+  try{
+    await fetch(FB_URL+'/'+path+'?updateMask.fieldPaths='+Object.keys(data).join('&updateMask.fieldPaths='),{
+      method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(toFsDoc(data))
+    });
+  }catch{}
+}
+async function fsList(collection){
+  try{
+    const r=await fetch(FB_URL+'/'+collection+'?orderBy=createdAt+desc&pageSize=200');
+    if(!r.ok)return[];
+    const d=await r.json();
+    return(d.documents||[]).map(doc=>{
+      const id=doc.name.split('/').pop();
+      return{id,...fsDoc(doc.fields||{})};
+    });
+  }catch{return[];}
+}
+async function fsAdd(collection,data){
+  try{
+    await fetch(FB_URL+'/'+collection,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(toFsDoc(data))
+    });
+    return true;
+  }catch{return false;}
+}
+
+// High-level storage API
+async function dbGet(k){
+  const r=await fsGet('7edge/attendance/'+k);
+  if(r)return r;
+  return lsG(k);
+}
+async function dbSet(k,v){
+  await fsSet('7edge/attendance/'+k,v);
+  lsS(k,v);
+}
+async function listGet(k){
+  const r=await fsList('7edge/attendance/'+k);
+  if(r&&r.length)return r;
+  return lsG(k+'_list')||[];
+}
+async function listAdd(k,v){
+  const id=Date.now().toString();
+  const success=await fsAdd('7edge/attendance/'+k,{...v,id,createdAt:Date.now()});
+  if(!success){
+    const l=lsG(k+'_list')||[];
+    l.unshift({id,...v,createdAt:Date.now()});
+    lsS(k+'_list',l);
+  }
+}
+async function listUpdate(k,id,updates){
+  // Find the document and update it
+  try{
+    const docs=await fsList('7edge/attendance/'+k);
+    const doc=docs.find(d=>d.id===id||d.id===id);
+    if(doc){
+      await fsSet('7edge/attendance/'+k+'/'+id,{...doc,...updates});
+    }
+  }catch{}
+  // Also update localStorage
+  const l=lsG(k+'_list')||[];
+  const idx=l.findIndex(r=>r.id===id);
+  if(idx!==-1){l[idx]={...l[idx],...updates};lsS(k+'_list',l);}
+}
 
 function fmt(d){return d instanceof Date?d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}):'--:--';}
 function today(){return new Date().toISOString().split('T')[0];}
