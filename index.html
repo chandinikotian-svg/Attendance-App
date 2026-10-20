@@ -191,10 +191,8 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
   <div class="login-card">
     <div class="login-title">Welcome back</div>
     <div class="login-sub">Sign in with your 7EDGE Google account to continue.</div>
-    <button class="google-btn" onclick="startGoogleLogin()">
-      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      Sign in with Google
-    </button>
+    <!-- Google renders its own button — works on all mobile browsers -->
+    <div id="googleBtnContainer" style="width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;overflow:hidden;"></div>
     <div class="login-err" id="loginErr"></div>
     <div class="login-note">Only @7edge.com accounts can sign in.</div>
   </div>
@@ -277,19 +275,60 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
 <div class="overlay" id="overlay" onclick="bgClose(event)">
   <div class="modal">
     <div class="modal-bar"></div>
-    <div class="modal-title">Request attendance correction</div>
-    <div class="modal-sub" id="modalSub"></div>
-    <div class="mgr-info" id="mgrInfo"></div>
-    <div class="field"><label>Date</label><input type="date" id="rDate" readonly></div>
-    <div class="field-row">
+    <div class="modal-title">Request Attendance Regularization</div>
+
+    <!-- Date + Shift row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:14px;background:var(--l-surface2);border-radius:10px;border:1px solid var(--l-border);">
+      <div>
+        <div style="font-size:11px;color:var(--l-text3);font-weight:500;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Selected date</div>
+        <div style="font-size:14px;font-weight:600;color:var(--l-text)" id="modalDateDisplay">—</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--l-text3);font-weight:500;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Shift timings</div>
+        <div style="font-size:14px;font-weight:600;color:var(--l-text)">09:30 AM - 06:30 PM</div>
+      </div>
+    </div>
+
+    <!-- Exempt from penalization -->
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#F0F3FA;border-radius:10px;border:1px solid var(--l-border);margin-bottom:16px;">
+      <div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--teal);background:var(--teal);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+        <div style="width:6px;height:6px;border-radius:50%;background:#fff;"></div>
+      </div>
+      <div style="font-size:13px;color:var(--l-text);line-height:1.5;">Raise regularization request to exempt this day from penalization policy.</div>
+    </div>
+
+    <!-- Clock in/out times (optional) -->
+    <div class="field-row" style="margin-bottom:14px;">
       <div class="field"><label>Clock-in time</label><input type="time" id="rIn"></div>
       <div class="field"><label>Clock-out time</label><input type="time" id="rOut"></div>
     </div>
-    <div class="field">
-      <label>Reason <span style="color:#C0392B">*</span></label>
-      <textarea id="rReason" placeholder="e.g. Forgot to clock in — was in office from 9:30 AM"></textarea>
-      <div class="err" id="errReason">Please provide a reason.</div>
+
+    <!-- Reason dropdown -->
+    <div class="field" style="margin-bottom:14px;">
+      <label>Select reason for regularization <span style="color:#C0392B">*</span></label>
+      <div style="position:relative;">
+        <select id="rReasonSelect" style="width:100%;padding:11px 36px 11px 12px;border:1px solid var(--l-border);border-radius:8px;font-size:14px;color:var(--l-text);background:var(--l-surface);outline:none;font-family:inherit;appearance:none;cursor:pointer;">
+          <option value="">Reason for regularization</option>
+          <option value="Missed Clock In">Missed Clock In</option>
+          <option value="Missed Clock Out">Missed Clock Out</option>
+          <option value="Missed Clock In and Clock Out">Missed Clock In and Clock Out</option>
+          <option value="Late Arrival">Late Arrival</option>
+          <option value="Discretionary Approval">Discretionary Approval</option>
+        </select>
+        <svg style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;width:14px;height:14px;fill:none;stroke:var(--l-text3);stroke-width:2;" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="err" id="errReason">Reason is required</div>
     </div>
+
+    <!-- Note -->
+    <div class="field" style="margin-bottom:16px;">
+      <label>Note</label>
+      <textarea id="rNote" placeholder="Enter note" style="width:100%;padding:10px 12px;border:1px solid var(--l-border);border-radius:8px;font-size:14px;color:var(--l-text);background:var(--l-surface2);outline:none;font-family:inherit;min-height:80px;resize:vertical;"></textarea>
+    </div>
+
+    <!-- Manager info -->
+    <div class="mgr-info" id="mgrInfo" style="margin-bottom:14px;"></div>
+
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeOverlay()">Cancel</button>
       <button class="btn-submit" id="submitBtn" onclick="submitReg()">Submit for approval</button>
@@ -304,78 +343,78 @@ const GOOGLE_CLIENT_ID='450676031020-863vf988hum1bmn0k7c7mjfr9g2035pu.apps.googl
 const SHIFT_START_MINS=9*60+30, SHIFT_END_MINS=18*60+30, SHIFT_HOURS=9;
 
 const ORG={
-  'chandini.kotian@7edge.com':{name:'Chandini D Kotian',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'angel.agnes@7edge.com':{name:'Angel Agnes',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
-  'ashwitha.d@7edge.com':{name:'Ashwitha D',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
-  'raksha.bh@7edge.com':{name:'B H Raksha',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
-  'cutinho.wilfred@7edge.com':{name:'Cutinho Winston Wilfred',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
-  'ruby.regi@7edge.com':{name:'Ruby Regi P',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
   'ashu.kajekar@7edge.com':{name:'Ashu S Kajekar',managerName:'',managerEmail:''},
-  'priyanka.gurung@7edge.com':{name:'Priyanka Gurung',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'nidarshan.k@7edge.com':{name:'Nidarshan K S',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
   'nagaraja.poojary@7edge.com':{name:'Nagaraja M Poojary',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'nishant.narayanan@7edge.com':{name:'Nishant Narayanan',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'ganesh.rao@7edge.com':{name:'Ganesh Rao K R',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'nidarshan.ks@7edge.com':{name:'Nidarshan K S',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'ranjith.n@7edge.com':{name:'Ranjith N',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'ashwath.prabhu@7edge.com':{name:'Ashwath Prabhu',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'jovitha.pinto@7edge.com':{name:'Jovitha Lisa Pinto',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
   'sandhyashri@7edge.com':{name:'Sandhyashri .',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
   'aishwarya@7edge.com':{name:'Aishwarya .',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'ranjith.n@7edge.com':{name:'Ranjith N',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
   'akshatha@7edge.com':{name:'Akshatha Kunder',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'murali.r@7edge.com':{name:'Murali R',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'pooja.shetty@7edge.com':{name:'Pooja A Shetty',managerName:'Aishwarya .',managerEmail:'aishwarya@7edge.com'},
   'shreelatha@7edge.com':{name:'Shreelatha .',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'jovitha.pinto@7edge.com':{name:'Jovitha Lisa Pinto',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'sanith.suvarna@7edge.com':{name:'Sanith S Suvarna',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
-  'abhay.kumar@7edge.com':{name:'Abhay Kumar',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'akhilesh.b@7edge.com':{name:'Akhilesh B',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'aman.nivedh@7edge.com':{name:'Aman Nivedh',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'anish.dsouza@7edge.com':{name:'Anish Rupert D Souza',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'apeksha.a@7edge.com':{name:'Apeksha A',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
-  'arpith.k@7edge.com':{name:'Arpith K',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'asrith.s@7edge.com':{name:'Asrith S',managerName:'Nagaraja M Poojary',managerEmail:'nagaraja.poojary@7edge.com'},
-  'ashwath.prabhu@7edge.com':{name:'Ashwath Prabhu',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'clinton.noronha@7edge.com':{name:'Clinton Justin Noronha',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'divyashree.br@7edge.com':{name:'Divyashree B R',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
+  'ganesh.rao@7edge.com':{name:'Ganesh Rao K R',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'murali.r@7edge.com':{name:'Murali R',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'namratha.shettigar@7edge.com':{name:'Namratha Shettigar',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
+  'nishant.narayanan@7edge.com':{name:'Nishant Narayanan',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'chandini.kotian@7edge.com':{name:'Chandini D Kotian',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'swasthik@7edge.com':{name:'Swasthik .',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
   'gprasad@7edge.com':{name:'Ganesh Prasad',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'sthuthi@7edge.com':{name:'Sthuthi B',managerName:'Aishwarya .',managerEmail:'aishwarya@7edge.com'},
+  'unnati.kamat@7edge.com':{name:'Unnati Geetanand Kamat',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
+  'akhilesh.b@7edge.com':{name:'Akhilesh B',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'ibrahim.khaleel@7edge.com':{name:'Ibrahim Khaleel',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'nishan.kumar@7edge.com':{name:'Nishan Kumar',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
+  'mithali.gatty@7edge.com':{name:'Mithali R Gatty',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
+  'nidhi.shashi@7edge.com':{name:'Nidhi Shashi Kumar',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
   'goutham.lava@7edge.com':{name:'Goutham .',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
   'rahul.jain@7edge.com':{name:'H Rahul Jain',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'hrithik.alva@7edge.com':{name:'Hrithik Harish Alva',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
-  'ibrahim.khaleel@7edge.com':{name:'Ibrahim Khaleel',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'dilli.babu@7edge.com':{name:'K Dilli Babu',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'karthik.m.shetty@7edge.com':{name:'Karthik M Shetty',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'kunal.lal@7edge.com':{name:'Kunal Lal',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
-  'mithali.gatty@7edge.com':{name:'Mithali R Gatty',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
-  'nagaraj.suryavanshi@7edge.com':{name:'Nagaraj Suryavanshi',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
-  'namratha.shettigar@7edge.com':{name:'Namratha Shettigar',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'nidhi.shashi@7edge.com':{name:'Nidhi Shashi Kumar',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'nishan.kumar@7edge.com':{name:'Nishan Kumar',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
-  'nishanth.raj@7edge.com':{name:'Nishanth S Raj',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'pawan.acharya@7edge.com':{name:'Pawan J Acharya',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'pearl.pereira@7edge.com':{name:'Pearl Lisha Pereira',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
-  'pooja.shetty@7edge.com':{name:'Pooja A Shetty',managerName:'Aishwarya .',managerEmail:'aishwarya@7edge.com'},
-  'pooja.s@7edge.com':{name:'Pooja S',managerName:'Nagaraja M Poojary',managerEmail:'nagaraja.poojary@7edge.com'},
-  'rahul.mallya@7edge.com':{name:'Rahul A Mallya',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'rajesh.s@7edge.com':{name:'Rajesh S',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'rohan.h@7edge.com':{name:'Rohan H',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
   'roopesh.yadava@7edge.com':{name:'Roopesh .',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'saad.usman@7edge.com':{name:'Saad Ameen Usman',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
-  'sagar.gupta@7edge.com':{name:'Sagar Gupta',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
-  'sanjeev.kumar@7edge.com':{name:'Sanjeev Kumar T V',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
-  'shashank.s@7edge.com':{name:'S Shashank .',managerName:'Nidarshan K S',managerEmail:'nidarshan.ks@7edge.com'},
-  'shanthrama.shetty@7edge.com':{name:'Shantharama Shetty P',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
-  'shreyas.bapat@7edge.com':{name:'Shreyas Bapat',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'shrutha.shetty@7edge.com':{name:'Shrutha D Shetty',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
-  'sonal.monis@7edge.com':{name:'Sonal Tennison Monis',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'sthuthi@7edge.com':{name:'Sthuthi B',managerName:'Aishwarya .',managerEmail:'aishwarya@7edge.com'},
-  'suhaas.kumar@7edge.com':{name:'Suhaas Kumar R',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'suhas.ku@7edge.com':{name:'Suhas K U',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
-  'suprith@7edge.com':{name:'Suprith .',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'swasthik@7edge.com':{name:'Swasthik .',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'tejas.ravi@7edge.com':{name:'Tejas Ravi',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
-  'unnati.kamat@7edge.com':{name:'Unnati Geetanand Kamat',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
-  'varun.gavoor@7edge.com':{name:'Varun Gavoor',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
-  'vijetha.pai@7edge.com':{name:'Vijetha Pai',managerName:'Nishant Narayanan',managerEmail:'nishant.narayanan@7edge.com'},
+  'nishanth.raj@7edge.com':{name:'Nishanth S Raj',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
+  'rahul.mallya@7edge.com':{name:'Rahul A Mallya',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
+  'arpith.k@7edge.com':{name:'Arpith K',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
   'vishanth.vishwanath@7edge.com':{name:'Vishanth .',managerName:'Aishwarya .',managerEmail:'aishwarya@7edge.com'},
+  'shantharama.shetty@7edge.com':{name:'Shantharama Shetty P',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
+  'pearl.pereira@7edge.com':{name:'Pearl Lisha Pereira',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
+  'asrith.s@7edge.com':{name:'Asrith S',managerName:'Nagaraja M Poojary',managerEmail:'nagaraja.poojary@7edge.com'},
+  'anish.dsouza@7edge.com':{name:'Anish Rupert D Souza',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
+  'rajesh.s@7edge.com':{name:'Rajesh S',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'apeksha.a@7edge.com':{name:'Apeksha A',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
+  'vijetha.pai@7edge.com':{name:'Vijetha Pai',managerName:'Nishant Narayanan',managerEmail:'nishant.narayanan@7edge.com'},
+  'saad.usman@7edge.com':{name:'Saad Ameen Usman',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
+  'sonal.monis@7edge.com':{name:'Sonal Tennison Monis',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'pawan.acharya@7edge.com':{name:'Pawan J Acharya',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'rohan.h@7edge.com':{name:'Rohan H',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
+  'priyanka.gurung@7edge.com':{name:'Priyanka Gurung',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'suprith.l@7edge.com':{name:'Suprith .',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
+  'aman.nivedh@7edge.com':{name:'Aman Nivedh',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
+  'clinton.noronha@7edge.com':{name:'Clinton Justin Noronha',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'shrutha.shetty@7edge.com':{name:'Shrutha D Shetty',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
+  'suhaas.kumar@7edge.com':{name:'Suhaas Kumar R',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
+  'varun.gavoor@7edge.com':{name:'Varun Gavoor',managerName:'Sandhyashri .',managerEmail:'sandhyashri@7edge.com'},
+  'tejas.ravi@7edge.com':{name:'Tejas Ravi',managerName:'Ranjith N',managerEmail:'ranjith.n@7edge.com'},
+  'angel.agnes@7edge.com':{name:'Angel Agnes',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
+  'hrithik.alva@7edge.com':{name:'Hrithik Harish Alva',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
+  'sanith.suvarna@7edge.com':{name:'Sanith S Suvarna',managerName:'Ashu S Kajekar',managerEmail:'ashu.kajekar@7edge.com'},
+  'karthik.m.shetty@7edge.com':{name:'Karthik M Shetty',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
+  'nagaraj.suryavanshi@7edge.com':{name:'Nagaraj Suryavanshi',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
+  'cutinho.wilfred@7edge.com':{name:'Cutinho Winston Wilfred',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
+  'sanjeev.kumar@7edge.com':{name:'Sanjeev Kumar T V',managerName:'Akshatha Kunder',managerEmail:'akshatha@7edge.com'},
+  'raksha.bh@7edge.com':{name:'B H Raksha',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
+  'shreyas.bapat@7edge.com':{name:'Shreyas Bapat',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
+  'sagar.gupta@7edge.com':{name:'Sagar Gupta',managerName:'Shreelatha .',managerEmail:'shreelatha@7edge.com'},
   'yashodhara.b@7edge.com':{name:'Yashodhara .',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
-  'akhil.viswambharan@7edge.com':{name:'Akhil Viswambharan',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
+  'ashwitha.d@7edge.com':{name:'Ashwitha D',managerName:'Chandini D Kotian',managerEmail:'chandini.kotian@7edge.com'},
+  'dilli.babu@7edge.com':{name:'K Dilli Babu',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
+  'shashank.s@7edge.com':{name:'S Shashank .',managerName:'Nidarshan K S',managerEmail:'nidarshan.k@7edge.com'},
+  'abhay.kumar@7edge.com':{name:'Abhay Kumar',managerName:'Murali R',managerEmail:'murali.r@7edge.com'},
+  'divyashree.br@7edge.com':{name:'Divyashree B R',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
+  'suhas.ku@7edge.com':{name:'Suhas K U',managerName:'Sanith S Suvarna',managerEmail:'sanith.suvarna@7edge.com'},
+  'ruby.regi@7edge.com':{name:'Ruby Regi P',managerName:'Priyanka Gurung',managerEmail:'priyanka.gurung@7edge.com'},
+  'kunal.lal@7edge.com':{name:'Kunal Lal',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
+  'pooja.s@7edge.com':{name:'Pooja S',managerName:'Nagaraja M Poojary',managerEmail:'nagaraja.poojary@7edge.com'},
+  'akhil.v@7edge.com':{name:'Akhil Viswambharan',managerName:'Jovitha Lisa Pinto',managerEmail:'jovitha.pinto@7edge.com'},
 };
 
 // Managers — people who are someone else's manager
@@ -392,18 +431,23 @@ async function init(){
 
 function initGoogleSignIn(){
   if(typeof google==='undefined'){setTimeout(initGoogleSignIn,500);return;}
-  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:handleGoogleLogin,auto_select:false});
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:handleGoogleLogin,auto_select:false,ux_mode:'popup'});
+  // Render actual Google button for mobile compatibility
+  const container = document.getElementById('googleBtnContainer');
+  if(container){
+    google.accounts.id.renderButton(container,{
+      theme:'outline', size:'large', width: container.offsetWidth || 320,
+      text:'signin_with', shape:'rectangular', logo_alignment:'left'
+    });
+  }
 }
 
 function startGoogleLogin(){
+  // Fallback if rendered button not clicked
   if(typeof google==='undefined'){showLoginErr('Google Sign-In not loaded. Please refresh.');return;}
-  google.accounts.id.prompt(n=>{
-    if(n.isNotDisplayed()||n.isSkippedMoment()){
-      const tmp=document.createElement('div');tmp.style.display='none';document.body.appendChild(tmp);
-      google.accounts.id.renderButton(tmp,{theme:'outline',size:'large'});
-      setTimeout(()=>{tmp.querySelector('div[role=button]')?.click();},100);
-    }
-  });
+  const btn = document.querySelector('#googleBtnContainer div[role=button]');
+  if(btn){ btn.click(); return; }
+  google.accounts.id.prompt();
 }
 
 function handleGoogleLogin(response){
@@ -438,6 +482,12 @@ function showApp(){
   loadSession().then(()=>{renderClockRow();checkNotifications();});
   renderLog();renderRequests();
   if(currentEmp.isManager)renderInbox();
+  // Auto-refresh data every 15 seconds — no sign out needed
+  setInterval(()=>{
+    renderLog();
+    renderRequests();
+    if(currentEmp?.isManager)renderInbox();
+  }, 15000);
 }
 
 function logout(){
@@ -539,7 +589,10 @@ async function loadSession(){
 async function renderLog(){
   if(!currentEmp)return;
   const entries=await listGet('entries');
-  const reqs=await listGet('requests');
+  // Always force fresh read for requests so approval status is current
+  let reqs=[];
+  if(db){try{const s=await db.collection('att/shared/requests').orderBy('createdAt','desc').limit(200).get();reqs=s.docs.map(d=>({id:d.id,...d.data()}));}catch{}}
+  if(!reqs.length)reqs=lsG('requests_list')||[];
   const myEntries=entries.filter(e=>e.emp===currentEmp.email);
   const myReqs=reqs.filter(r=>r.emp===currentEmp.email);
   const approvedDates=new Set(myReqs.filter(r=>r.status==='approved').map(r=>r.date));
@@ -567,12 +620,15 @@ function buildLogRow({key,d,dow,entry,approved,pending}){
 let modalDate='';
 function openModal(date,label,ci,co){
   modalDate=date;
-  document.getElementById('modalSub').textContent='Correction for '+label;
-  document.getElementById('mgrInfo').innerHTML='📧 Your request will appear in <strong>'+currentEmp.managerName+'\'s Inbox</strong> for approval.';
-  document.getElementById('rDate').value=date;
+  // Format date nicely for display
+  const d=new Date(date+'T00:00:00');
+  const niceDateStr=d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}).replace(/ /g,' ');
+  document.getElementById('modalDateDisplay').textContent=niceDateStr;
+  document.getElementById('mgrInfo').innerHTML='📧 Request will go to <strong>'+currentEmp.managerName+'\'s Inbox</strong> for approval.';
   document.getElementById('rIn').value=ci?new Date(ci).toTimeString().slice(0,5):'';
   document.getElementById('rOut').value=co?new Date(co).toTimeString().slice(0,5):'';
-  document.getElementById('rReason').value='';
+  document.getElementById('rReasonSelect').value='';
+  document.getElementById('rNote').value='';
   document.getElementById('errReason').style.display='none';
   document.getElementById('overlay').classList.add('open');
 }
@@ -580,12 +636,21 @@ function closeOverlay(){document.getElementById('overlay').classList.remove('ope
 function bgClose(e){if(e.target===document.getElementById('overlay'))closeOverlay();}
 
 async function submitReg(){
-  const reason=document.getElementById('rReason').value.trim();
+  const reason=document.getElementById('rReasonSelect').value;
   if(!reason){document.getElementById('errReason').style.display='block';return;}
   document.getElementById('errReason').style.display='none';
+  const note=document.getElementById('rNote').value.trim();
   const btn=document.getElementById('submitBtn');
   btn.textContent='Submitting…';btn.disabled=true;
-  await listAdd('requests',{id:Date.now().toString(),date:modalDate,cin:document.getElementById('rIn').value,cout:document.getElementById('rOut').value,reason,emp:currentEmp.email,empName:currentEmp.name,managerEmail:currentEmp.managerEmail,managerName:currentEmp.managerName,status:'pending',submittedAt:new Date().toISOString()});
+  await listAdd('requests',{
+    id:Date.now().toString(),date:modalDate,
+    cin:document.getElementById('rIn').value,
+    cout:document.getElementById('rOut').value,
+    reason, note,
+    emp:currentEmp.email,empName:currentEmp.name,
+    managerEmail:currentEmp.managerEmail,managerName:currentEmp.managerName,
+    status:'pending',submittedAt:new Date().toISOString()
+  });
   btn.textContent='Submit for approval';btn.disabled=false;
   closeOverlay();
   showToast('Request sent to '+currentEmp.managerName+'\'s inbox');
@@ -594,14 +659,17 @@ async function submitReg(){
 
 async function renderRequests(){
   if(!currentEmp)return;
-  const reqs=await listGet('requests');
+  // Always force fresh read from shared DB
+  let reqs=[];
+  if(db){try{const s=await db.collection('att/shared/requests').orderBy('createdAt','desc').limit(200).get();reqs=s.docs.map(d=>({id:d.id,...d.data()}));}catch{}}
+  if(!reqs.length)reqs=lsG('requests_list')||[];
   const myReqs=reqs.filter(r=>r.emp===currentEmp.email).sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
   const pending=myReqs.filter(r=>r.status==='pending').length;
   const badge=document.getElementById('reqBadge');
   badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;
   const el=document.getElementById('reqList');
   if(!myReqs.length){el.innerHTML='<div class="empty">No regularization requests yet.</div>';return;}
-  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+(r.status==='approved'?'Approved ✓':r.status==='rejected'?'Rejected ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+(r.cin||'--:--')+' → '+(r.cout||'--:--')+'</div><div class="req-reason">"'+r.reason+'"</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic">Manager: "'+r.mgrComment+'"</div>':'')+'<div class="req-mgr">Sent to '+r.managerName+'</div></div>').join('');
+  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+(r.status==='approved'?'Approved ✓':r.status==='rejected'?'Rejected ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+(r.cin||'--:--')+' → '+(r.cout||'--:--')+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500;font-style:normal">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div class="req-mgr" style="margin-top:4px">Sent to '+r.managerName+'</div></div>').join('');
 }
 
 // ── INBOX (Manager) ───────────────────────────────────────
@@ -619,10 +687,11 @@ async function renderInbox(){
   let html='';
   if(pendingReqs.length){
     pendingReqs.forEach(r=>{
-      html+='<div class="inbox-card" id="inbox-'+r.id+'">';
-      html+='<div class="inbox-top"><div><div class="inbox-emp">'+r.empName+'</div><div class="inbox-date">'+fmtDate(r.date)+'</div></div><span class="req-badge s-pending">Pending</span></div>';
+      html+='<div class="inbox-card" id="inbox-'+r.id+'" data-reqid="'+r.id+'">';
+      const displayName = r.empName && r.empName!=='undefined' ? r.empName : (ORG[r.emp]?.name || r.emp || 'Unknown');
+      html+='<div class="inbox-top"><div><div class="inbox-emp">'+displayName+'</div><div class="inbox-date">'+fmtDate(r.date)+'</div></div><span class="req-badge s-pending">Pending</span></div>';
       html+='<div class="inbox-times">'+( r.cin||'--:--')+' → '+(r.cout||'--:--')+'</div>';
-      html+='<div class="inbox-reason">"'+r.reason+'"</div>';
+      html+='<div class="inbox-reason"><strong>'+r.reason+'</strong>'+(r.note?'<br><span style="font-weight:400;font-style:normal;color:var(--l-text3)">'+r.note+'</span>':'')+'</div>';
       html+='<textarea class="inbox-comment" id="comment-'+r.id+'" placeholder="Add a comment (optional)…" rows="2"></textarea>';
       html+='<div class="inbox-actions"><button class="btn-approve" onclick="handleInbox(\''+r.id+'\',\'approved\')">✓ Approve</button><button class="btn-reject" onclick="handleInbox(\''+r.id+'\',\'rejected\')">✗ Reject</button></div>';
       html+='</div>';
@@ -630,7 +699,8 @@ async function renderInbox(){
   }
   if(doneReqs.length){
     doneReqs.forEach(r=>{
-      html+='<div class="inbox-done"><span>'+(r.status==='approved'?'✓':'✗')+'</span><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--l-text)">'+r.empName+'</div><div style="font-size:11px;color:var(--l-text3)">'+fmtDate(r.date)+'</div></div><span class="inbox-done-badge '+(r.status==='approved'?'s-approved':'s-rejected')+'">'+(r.status==='approved'?'Approved':'Rejected')+'</span></div>';
+      const dName = r.empName && r.empName!=='undefined' ? r.empName : (ORG[r.emp]?.name || r.emp || 'Unknown');
+      html+='<div class="inbox-done"><span>'+(r.status==='approved'?'✓':'✗')+'</span><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--l-text)">'+dName+'</div><div style="font-size:11px;color:var(--l-text3)">'+fmtDate(r.date)+'</div></div><span class="inbox-done-badge '+(r.status==='approved'?'s-approved':'s-rejected')+'">'+(r.status==='approved'?'Approved':'Rejected')+'</span></div>';
     });
   }
   el.innerHTML=html;
@@ -638,23 +708,46 @@ async function renderInbox(){
 
 async function handleInbox(reqId,action){
   const comment=document.getElementById('comment-'+reqId)?.value.trim()||'';
-  const reqs=lsG('requests_list')||[];
-  const idx=reqs.findIndex(r=>r.id===reqId);
-  if(idx===-1)return;
-  reqs[idx].status=action;
-  reqs[idx].mgrComment=comment;
-  reqs[idx].decidedAt=new Date().toISOString();
-  lsS('requests_list',reqs);
+  const btn_a=document.querySelector('#inbox-'+reqId+' .btn-approve');
+  const btn_r=document.querySelector('#inbox-'+reqId+' .btn-reject');
+  if(btn_a)btn_a.disabled=true;
+  if(btn_r)btn_r.disabled=true;
+
+  let empName='';
+  // Try shared DB first (this is the only reliable cross-device store)
   if(db){
     try{
       const col=db.collection('att/shared/requests');
       const snap=await col.orderBy('createdAt','desc').limit(200).get();
       const doc=snap.docs.find(d=>d.data().id===reqId);
-      if(doc)await col.doc(doc.id).set({...doc.data(),status:action,mgrComment:comment,decidedAt:new Date().toISOString(),createdAt:doc.data().createdAt});
-    }catch{}
+      if(doc){
+        empName=doc.data().empName||'';
+        await col.doc(doc.id).set({
+          ...doc.data(),
+          status:action,
+          mgrComment:comment,
+          decidedAt:new Date().toISOString(),
+          createdAt:doc.data().createdAt
+        });
+      }
+    }catch(e){console.error('DB error:',e);}
   }
-  showToast('Request '+(action==='approved'?'approved ✓':'rejected ✗')+' for '+reqs[idx].empName);
+  // Also update localStorage as fallback
+  const reqs=lsG('requests_list')||[];
+  const idx=reqs.findIndex(r=>r.id===reqId);
+  if(idx!==-1){
+    empName=empName||reqs[idx].empName||'';
+    reqs[idx].status=action;
+    reqs[idx].mgrComment=comment;
+    reqs[idx].decidedAt=new Date().toISOString();
+    lsS('requests_list',reqs);
+  }
+
+  showToast('Request '+(action==='approved'?'approved ✓':'rejected ✗')+(empName?' for '+empName:''));
+  // Refresh everything immediately
   renderInbox();
+  renderLog();
+  renderRequests();
 }
 
 function showPane(n){
@@ -664,9 +757,10 @@ function showPane(n){
   });
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('pane-'+n).classList.add('active');
-  if(n==='log')renderLog();
-  if(n==='requests')renderRequests();
-  if(n==='inbox')renderInbox();
+  // Always refresh data when switching tabs
+  renderLog();
+  renderRequests();
+  if(currentEmp?.isManager)renderInbox();
 }
 
 function lsG(k){try{return JSON.parse(localStorage.getItem('7e_'+k))||null;}catch{return null;}}
@@ -680,6 +774,15 @@ function fmt(d){return d instanceof Date?d.toLocaleTimeString('en-IN',{hour:'2-d
 function today(){return new Date().toISOString().split('T')[0];}
 function fmtDate(s){if(!s)return'—';const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+
+// Refresh when user comes back to the app from another tab/app
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && currentEmp){
+    renderLog();
+    renderRequests();
+    if(currentEmp?.isManager)renderInbox();
+  }
+});
 
 init();
 </script>
