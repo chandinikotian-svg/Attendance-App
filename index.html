@@ -224,6 +224,13 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
   </div>
 
   <!-- Clock -->
+  <!-- Loading overlay -->
+  <div id="loadingOverlay" style="position:fixed;inset:0;background:var(--navy);z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+    <div style="width:40px;height:40px;border:3px solid rgba(11,173,188,0.3);border-top-color:var(--teal);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+    <div style="font-size:13px;color:var(--text-dim);">Loading your attendance...</div>
+  </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
   <div class="pane active" id="pane-clock">
     <div class="shift-banner">
       <div><div class="shift-label">Shift today</div><div class="shift-val">General &nbsp;·&nbsp; 9:30 AM – 6:30 PM</div></div>
@@ -484,7 +491,16 @@ function showApp(){
   renderDateHeader();
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
-  loadSession().then(()=>{renderClockRow();checkNotifications();});
+  // Load session with 3 second timeout fallback so clock row always renders
+  const sessionPromise = loadSession();
+  const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+  Promise.race([sessionPromise, timeoutPromise]).then(()=>{
+    renderClockRow();
+    checkNotifications();
+    // Hide loading overlay
+    const overlay = document.getElementById('loadingOverlay');
+    if(overlay) overlay.style.display = 'none';
+  });
   renderLog();renderRequests();
   if(currentEmp.isManager)renderInbox();
   // Auto-refresh data every 15 seconds — no sign out needed
@@ -536,6 +552,7 @@ function checkNotifications(){
 
 function renderClockRow(){
   const row=document.getElementById('clockActionRow');
+  if(!row) return;
   if(!clockedIn){
     row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button><button class="punch-btn" onclick="showToast(\'Location punch recorded\')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="punch-label">Punch</span></button>';
     document.getElementById('statsRow').style.display='none';
@@ -587,8 +604,11 @@ async function handleClock(){
 }
 
 async function loadSession(){
-  const s=await dbGet('session_'+currentEmp.email.replace(/[@.]/g,'_'));
-  if(s?.on){clockedIn=true;clockInTime=new Date(s.t);}
+  try{
+    const s=await dbGet('session_'+currentEmp.email.replace(/[@.]/g,'_'));
+    if(s?.on&&s?.t){clockedIn=true;clockInTime=new Date(s.t);}
+    else{clockedIn=false;}
+  }catch(e){clockedIn=false;}
 }
 
 async function renderLog(){
@@ -777,9 +797,23 @@ function toFsVal(v){
 }
 function toFsDoc(obj){const fields={};for(const k in obj)fields[k]=toFsVal(obj[k]);return{fields};}
 
+// Fetch with 5 second timeout — never hangs
+async function fetchWithTimeout(url, options={}, ms=5000){
+  const controller=new AbortController();
+  const id=setTimeout(()=>controller.abort(), ms);
+  try{
+    const r=await fetch(url,{...options, signal:controller.signal});
+    clearTimeout(id);
+    return r;
+  }catch(e){
+    clearTimeout(id);
+    throw e;
+  }
+}
+
 async function fsGet(path){
   try{
-    const r=await fetch(FB_URL+'/'+path);
+    const r=await fetchWithTimeout(FB_URL+'/'+path);
     if(!r.ok)return null;
     const d=await r.json();
     return d.fields?fsDoc(d.fields):null;
@@ -787,7 +821,7 @@ async function fsGet(path){
 }
 async function fsSet(path,data){
   try{
-    await fetch(FB_URL+'/'+path+'?updateMask.fieldPaths='+Object.keys(data).join('&updateMask.fieldPaths='),{
+    await fetchWithTimeout(FB_URL+'/'+path+'?updateMask.fieldPaths='+Object.keys(data).join('&updateMask.fieldPaths='),{
       method:'PATCH',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(toFsDoc(data))
     });
@@ -795,7 +829,7 @@ async function fsSet(path,data){
 }
 async function fsList(collection){
   try{
-    const r=await fetch(FB_URL+'/'+collection+'?orderBy=createdAt+desc&pageSize=200');
+    const r=await fetchWithTimeout(FB_URL+'/'+collection+'?orderBy=createdAt+desc&pageSize=200');
     if(!r.ok)return[];
     const d=await r.json();
     return(d.documents||[]).map(doc=>{
@@ -806,7 +840,7 @@ async function fsList(collection){
 }
 async function fsAdd(collection,data){
   try{
-    await fetch(FB_URL+'/'+collection,{
+    await fetchWithTimeout(FB_URL+'/'+collection,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(toFsDoc(data))
     });
