@@ -258,8 +258,9 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
 
   <!-- Log -->
   <div class="pane" id="pane-log">
-    <div class="log-header">
-      <span>Date</span><span>Visual</span>
+    <div class="log-header" style="grid-template-columns:90px 1fr 120px 62px 32px">
+      <span>Date</span>
+      <span>Clock In / Out</span>
       <span style="text-align:right">Eff. hrs</span>
       <span style="text-align:right">Arrival</span>
       <span style="text-align:center">Log</span>
@@ -548,6 +549,9 @@ function showApp(){
   renderClockRow();
   checkNotifications();
   renderLog();
+  // Clear stale localStorage cache — force fresh from GAS
+  lsS('entries_list',[]);
+  lsS('requests_list',[]);
   // Always check GAS for latest session (cross-device sync)
   gasGet('getSession', currentEmp.email).then(gasSession=>{
     if(gasSession && gasSession.on===true && gasSession.t){
@@ -764,50 +768,46 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
     return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:0%"></div></div></div><div class="col-r"><span class="eff zero">0h 0m</span></div><div class="col-r"><span class="arr-tag tag-missing">Missing</span></div><div class="col-c"><button class="log-btn warn" onclick="openModal(\''+key+'\',\''+label+'\',null,null)"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>';
   }
 
-  // Build rows for each complete entry + in-progress
-  let html='';
+  // Build Keka-style row — all punches in one row
+  const firstEntry=completeEntries[0];
+  const lastEntry=completeEntries[completeEntries.length-1];
+  const cinMins=firstEntry?new Date(firstEntry.ci).getHours()*60+new Date(firstEntry.ci).getMinutes():(inProgress?new Date(clockInTime).getHours()*60+new Date(clockInTime).getMinutes():0);
+  const isLate=(firstEntry?.late)||(cinMins>SHIFT_START_MINS);
+  const pct=Math.min(100,(totalHrs/SHIFT_HOURS)*100);
 
-  // First entry shows the date label
-  let firstShown=false;
-  completeEntries.forEach((entry,idx)=>{
-    const ci=new Date(entry.ci),co=new Date(entry.co);
-    const cinM=ci.getHours()*60+ci.getMinutes();
-    const isLate=entry.late||cinM>SHIFT_START_MINS;
-    const pct=Math.min(100,(entry.hrs/SHIFT_HOURS)*100);
-    html+='<div class="log-row" style="'+(idx>0?'border-top:1px dashed #E2E6F0;':'')+'">';
-    html+='<div><div class="row-date">'+(idx===0?label:'<span style="color:var(--l-text3);font-size:11px">'+label+'</span>')+'</div><div class="row-date-sub">'+fmt(ci)+' – '+fmt(co)+'</div></div>';
-    html+='<div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%"></div></div></div>';
-    html+='<div class="col-r"><span class="eff '+(isLate?'late':'good')+'">'+Math.floor(entry.hrs)+'h '+Math.round((entry.hrs%1)*60)+'m</span></div>';
-    html+='<div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div>';
-    html+='<div class="col-c"><button class="log-btn ok" onclick="openModal(\''+key+'\',\''+label+'\',\''+entry.ci+'\',\''+entry.co+'\')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>';
-    html+='</div>';
-    firstShown=true;
+  // Build clock pairs string — Keka style: ↙9:18 AM ↗7:52 PM
+  let pairsHtml='';
+  completeEntries.forEach(e=>{
+    const ci=new Date(e.ci);
+    const co=new Date(e.co);
+    pairsHtml+='<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:12px;white-space:nowrap">';
+    pairsHtml+='<span style="color:#1A7A4A">↙ '+fmt(ci)+'</span>';
+    pairsHtml+='<span style="color:var(--l-text3)">→</span>';
+    pairsHtml+='<span style="color:#C0392B">↗ '+fmt(co)+'</span>';
+    pairsHtml+='</span>';
   });
-
-  // Show in-progress row if currently clocked in
   if(inProgress){
-    const elapsedMs=new Date()-new Date(clockInTime);
+    const ci=new Date(clockInTime);
+    const elapsedMs=new Date()-ci;
     const elH=Math.floor(elapsedMs/3600000),elM=Math.floor((elapsedMs%3600000)/60000);
-    const pct=Math.min(100,(elapsedMs/3600000/SHIFT_HOURS)*100);
-    const cinMins=new Date(clockInTime).getHours()*60+new Date(clockInTime).getMinutes();
-    const isLate=cinMins>SHIFT_START_MINS;
-    html+='<div class="log-row" style="'+(firstShown?'border-top:1px dashed #E2E6F0;':'')+'">';
-    html+='<div><div class="row-date">'+(firstShown?'<span style="color:var(--l-text3);font-size:11px">'+label+'</span>':label)+'</div><div class="row-date-sub">'+fmt(new Date(clockInTime))+' – ongoing</div></div>';
-    html+='<div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%;background:#22C97A"></div></div></div>';
-    html+='<div class="col-r"><span class="eff good">'+elH+'h '+elM+'m</span></div>';
-    html+='<div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div>';
-    html+='<div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div>';
-    html+='</div>';
+    pairsHtml+='<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap">';
+    pairsHtml+='<span style="color:#1A7A4A">↙ '+fmt(ci)+'</span>';
+    pairsHtml+='<span style="color:var(--l-text3)">→</span>';
+    pairsHtml+='<span style="color:var(--teal)">ongoing ('+elH+'h '+elM+'m)</span>';
+    pairsHtml+='</span>';
   }
 
-  // Show total if multiple entries
-  if(completeEntries.length>1){
-    html+='<div style="padding:6px 16px;background:#F0F3FA;border-bottom:1px solid var(--l-border);display:flex;justify-content:space-between;align-items:center;">';
-    html+='<span style="font-size:11px;color:var(--l-text3)">Total for '+label+'</span>';
-    html+='<span style="font-size:13px;font-weight:600;color:#1A7A4A">'+Math.floor(totalHrs)+'h '+Math.round((totalHrs%1)*60)+'m</span>';
-    html+='</div>';
-  }
+  const effHrs = inProgress
+    ? (()=>{const ms=new Date()-new Date(clockInTime)+totalHrs*3600000;return Math.floor(ms/3600000)+'h '+Math.floor((ms%3600000)/60000)+'m';})()
+    : Math.floor(totalHrs)+'h '+Math.round((totalHrs%1)*60)+'m';
 
+  let html='<div class="log-row" style="grid-template-columns:90px 1fr 120px 62px 32px;align-items:start;padding:12px 16px">';
+  html+='<div><div class="row-date">'+label+'</div></div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:4px;padding-top:2px">'+pairsHtml+'</div>';
+  html+='<div class="col-r"><span class="eff '+(completeEntries.length||inProgress?(isLate?'late':'good'):'zero')+'">'+effHrs+'</span></div>';
+  html+='<div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div>';
+  html+='<div class="col-c"><button class="log-btn '+(completeEntries.length?'ok':'warn')+'" onclick="openModal(\''+key+'\',\''+label+'\','+(firstEntry?'\''+firstEntry.ci+'\',\''+firstEntry.co+'\'':'null,null')+')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>';
+  html+='</div>';
   return html;
 }
 
