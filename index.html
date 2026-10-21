@@ -533,15 +533,18 @@ function showApp(){
   renderDateHeader();
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
-  // Load session from localStorage — instant, no network call
-  const sessionKey='session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,'');
+  // Load session synchronously from localStorage
+  const sessionKey='sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_');
   const s=lsG(sessionKey);
-  if(s&&s.on===true&&s.t){
+  console.log('Loading session key:', '7e_'+sessionKey, '→', s);
+  if(s && s.on===true && s.t){
     clockedIn=true;
     clockInTime=new Date(s.t);
+    console.log('Restored clock-in at:', clockInTime);
   } else {
     clockedIn=false;
     clockInTime=null;
+    console.log('No active session found');
   }
   renderClockRow();
   checkNotifications();
@@ -635,9 +638,10 @@ async function handleClock(){
     clockedIn=true;clockInTime=new Date();
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
-    const sk='session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,'');
-    lsS(sk,{on:true,t:clockInTime.toISOString(),late:isLate});
-    console.log('Session saved:', sk, lsG(sk));
+    const sk='sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_');
+    const sessionData={on:true,t:clockInTime.toISOString(),late:isLate};
+    lsS(sk,sessionData);
+    console.log('✅ Session saved to key: 7e_'+sk, '→', lsG(sk));
     renderClockRow();
     if(isLate){const lb=cinMins-SHIFT_START_MINS;showToast('Clocked in '+(Math.floor(lb/60)>0?Math.floor(lb/60)+'h ':'')+lb%60+'m late');}
     else showToast('Clocked in at '+fmt(clockInTime)+' — on time');
@@ -646,7 +650,7 @@ async function handleClock(){
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     await listAdd('entries',{date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs,late:cinMins>SHIFT_START_MINS,type:'complete',emp:currentEmp.email});
-    lsS('session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,''),{on:false});
+    lsS('sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_'),{on:false});
     clockedIn=false;clearInterval(durTimer);durTimer=null;
     document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     document.getElementById('statsRow').style.display='none';
@@ -657,7 +661,7 @@ async function handleClock(){
 
 async function loadSession(){
   try{
-    const s=await dbGet('session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,''));
+    const s=lsG('sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_'));
     if(s?.on&&s?.t){clockedIn=true;clockInTime=new Date(s.t);}
     else{clockedIn=false;}
   }catch(e){clockedIn=false;}
@@ -699,6 +703,8 @@ function openModal(date,label,ci,co){
   const niceDateStr=d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}).replace(/ /g,' ');
   document.getElementById('modalDateDisplay').textContent=niceDateStr;
   document.getElementById('mgrInfo').innerHTML='📧 Request will go to <strong>'+currentEmp.managerName+'\'s Inbox</strong> for approval.';
+  // If no ci passed but employee is currently clocked in, use that
+  if(!ci && clockedIn && clockInTime) ci = clockInTime.toISOString();
   const cinTime=ci?fmt(new Date(ci)):'Not recorded';
   const coutTime=co?fmt(new Date(co)):'Not recorded';
   document.getElementById('rIn').value=ci?new Date(ci).toTimeString().slice(0,5):'';
