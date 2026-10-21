@@ -535,37 +535,42 @@ function showApp(){
   renderDateHeader();
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
-  // Load session — localStorage first (instant), then Firebase
+  // Load session — localStorage first (instant)
   const localSession=lsG('clocksession');
-  if(localSession && localSession.on===true && localSession.t && (!localSession.emp || localSession.emp===currentEmp.email)){
+  if(localSession && localSession.on===true && localSession.t && (!localSession.emp||localSession.emp===currentEmp.email)){
     clockedIn=true;
     clockInTime=new Date(localSession.t);
     console.log('✅ Session from localStorage:', clockInTime);
-    renderClockRow();
-    checkNotifications();
-    renderLog();
   } else {
-    // No local session — check Firebase (might be clocked in on another device)
     clockedIn=false;
     clockInTime=null;
-    renderClockRow();
-    checkNotifications();
-    renderLog();
-    // Check Firebase in background
-    fbGet('sessions/clocksession').then(fbSession=>{
-      if(fbSession && fbSession.on===true && fbSession.t && (!fbSession.emp || fbSession.emp===currentEmp.email)){
+  }
+  renderClockRow();
+  checkNotifications();
+  renderLog();
+  // Always check GAS for latest session (cross-device sync)
+  gasGet('getSession', currentEmp.email).then(gasSession=>{
+    if(gasSession && gasSession.on===true && gasSession.t){
+      const newCi = new Date(gasSession.t);
+      // Only update if different from local
+      if(!clockedIn || !clockInTime || newCi.getTime()!==clockInTime?.getTime()){
         clockedIn=true;
-        clockInTime=new Date(fbSession.t);
-        lsS('clocksession',fbSession); // cache locally
-        console.log('✅ Session from Firebase:', clockInTime);
+        clockInTime=newCi;
+        lsS('clocksession',{...gasSession,emp:currentEmp.email});
+        console.log('✅ Session from GAS:', clockInTime);
         renderClockRow();
         checkNotifications();
         renderLog();
-      } else {
-        console.log('No active session on any device');
       }
-    }).catch(()=>{});
-  }
+    } else if(gasSession && gasSession.on===false && clockedIn){
+      // Clocked out on another device
+      clockedIn=false;
+      clockInTime=null;
+      lsS('clocksession',{on:false,emp:currentEmp.email});
+      renderClockRow();
+      renderLog();
+    }
+  }).catch(()=>{});
   // Render immediately from localStorage cache — instant display
   renderLog();
   renderRequests();
@@ -655,11 +660,10 @@ async function handleClock(){
     clockedIn=true;clockInTime=new Date();
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
-    const sk='clocksession';
-    const sessionData={on:true,t:clockInTime.toISOString(),late:isLate,emp:currentEmp.email};
-    lsS(sk,sessionData); // instant local save
-    dbSet(sk,sessionData); // background Firebase sync
-    console.log('✅ Session saved:', lsG(sk));
+    const sessionData={on:true,t:clockInTime.toISOString(),late:isLate,emp:currentEmp.email,email:currentEmp.email};
+    lsS('clocksession',sessionData); // instant local save
+    gasPost({action:'setSession',...sessionData}).catch(()=>{}); // background GAS sync
+    console.log('✅ Session saved:', sessionData);
     // Save partial in-progress entry so log shows clock-in immediately
     const existing=lsG('entries_list')||[];
     const todayKey=today();
@@ -676,8 +680,9 @@ async function handleClock(){
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     await listAdd('entries',{date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs,late:cinMins>SHIFT_START_MINS,type:'complete',emp:currentEmp.email});
-    lsS('clocksession',{on:false,emp:currentEmp.email});
-    dbSet('clocksession',{on:false,emp:currentEmp.email});
+    const outSession={on:false,emp:currentEmp.email,email:currentEmp.email};
+    lsS('clocksession',outSession);
+    gasPost({action:'setSession',...outSession}).catch(()=>{});
     clockedIn=false;clearInterval(durTimer);durTimer=null;
     document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     document.getElementById('statsRow').style.display='none';
@@ -866,125 +871,71 @@ function showPane(n){
 }
 
 // ── Storage — localStorage (instant, reliable) ──────────────
-// ── Storage ───────────────────────────────────────────────────
-const FB='https://firestore.googleapis.com/v1/projects/edge-attendance-5e1c1/databases/(default)/documents';
+// ── Storage — Google Apps Script (cross-device sync) ─────────
+const GAS = 'https://script.google.com/macros/s/AKfycbzYgWw2zQQi1VElY80RqXL8lFVgElM_T-azulS4fG252fzly0amalCCpUqo0lNM4jXrZQ/exec';
+
+// Google Apps Script API calls
+async function gasGet(action, email) {
+  try {
+    const r = await fetch(GAS + '?action=' + action + '&email=' + encodeURIComponent(email) + '&t=' + Date.now());
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function gasPost(data) {
+  try {
+    const r = await fetch(GAS, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
 
 function lsG(k){try{return JSON.parse(localStorage.getItem('7e_'+k))||null;}catch{return null;}}
 function lsS(k,v){try{localStorage.setItem('7e_'+k,JSON.stringify(v));}catch{}}
 
-// Convert to/from Firestore format
-function toFS(v){
-  if(v===null||v===undefined)return{nullValue:null};
-  if(typeof v==='boolean')return{booleanValue:v};
-  if(typeof v==='number')return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};
-  if(typeof v==='string')return{stringValue:v};
-  if(typeof v==='object'){const f={};for(const k in v)f[k]=toFS(v[k]);return{mapValue:{fields:f}};}
-  return{stringValue:String(v)};
-}
-function fromFS(v){
-  if(!v)return null;
-  if('stringValue'in v)return v.stringValue;
-  if('integerValue'in v)return parseInt(v.integerValue);
-  if('doubleValue'in v)return v.doubleValue;
-  if('booleanValue'in v)return v.booleanValue;
-  if('nullValue'in v)return null;
-  if('mapValue'in v){const o={};for(const k in(v.mapValue.fields||{}))o[k]=fromFS(v.mapValue.fields[k]);return o;}
-  return null;
-}
-function toFSDoc(obj){const f={};for(const k in obj)f[k]=toFS(obj[k]);return{fields:f};}
-function fromFSDoc(doc){const o={};for(const k in(doc.fields||{}))o[k]=fromFS(doc.fields[k]);return o;}
-
-// Firebase read/write with 4s timeout
-async function fbFetch(url,opts={}){
-  const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(),4000);
-  try{const r=await fetch(url,{...opts,signal:ctrl.signal});clearTimeout(t);return r;}
-  catch(e){clearTimeout(t);throw e;}
-}
-
-async function fbGet(path){
-  try{
-    const r=await fbFetch(FB+'/'+path);
-    if(!r.ok)return null;
-    return fromFSDoc(await r.json());
-  }catch{return null;}
-}
-
-async function fbSet(path,data){
-  try{
-    const fields=Object.keys(data).join('&updateMask.fieldPaths=');
-    await fbFetch(FB+'/'+path+'?updateMask.fieldPaths='+fields,{
-      method:'PATCH',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(toFSDoc(data))
-    });
-  }catch{}
-}
-
-async function fbList(col){
-  try{
-    const r=await fbFetch(FB+'/'+col+'?pageSize=200');
-    if(!r.ok)return[];
-    const d=await r.json();
-    return(d.documents||[]).map(doc=>({id:doc.name.split('/').pop(),...fromFSDoc(doc)}));
-  }catch{return[];}
-}
-
-async function fbAdd(col,data){
-  try{
-    await fbFetch(FB+'/'+col,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(toFSDoc(data))});
-    return true;
-  }catch{return false;}
-}
-
-// High-level API — localStorage first (instant), Firebase in background
-async function dbGet(k){
-  const cached=lsG(k);
-  // Sync from Firebase in background
-  fbGet('sessions/'+k.replace(/[^a-zA-Z0-9_]/g,'_')).then(v=>{
-    if(v){lsS(k,v);}
-  }).catch(()=>{});
-  return cached;
-}
-
-async function dbSet(k,v){
-  lsS(k,v); // Save to localStorage instantly
-  // Write to Firebase in background (non-blocking)
-  fbSet('sessions/'+k.replace(/[^a-zA-Z0-9_]/g,'_'),v).catch(()=>{});
-}
+async function dbGet(k){return lsG(k);}
+async function dbSet(k,v){lsS(k,v);}
 async function listGet(k){
-  const cached=lsG(k+'_list')||[];
-  // Sync from Firebase in background
-  fbList(k).then(items=>{
-    if(items&&items.length){
-      // Merge Firebase with local — Firebase wins for status updates
-      const merged=items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-      lsS(k+'_list',merged);
+  // Return localStorage immediately (instant)
+  const cached = lsG(k+'_list')||[];
+  // Sync from GAS in background — updates localStorage for next read
+  if(currentEmp){
+    const action = k==='entries'?'getEntries': k==='requests'?'getRequests': k==='inbox'?'getInbox':null;
+    if(action){
+      gasGet(action, currentEmp.email).then(items=>{
+        if(items && Array.isArray(items) && items.length){
+          lsS(k+'_list', items);
+        }
+      }).catch(()=>{});
     }
-  }).catch(()=>{});
+  }
   return cached;
 }
 
 async function listAdd(k,v){
-  const id=Date.now().toString();
-  const item={id,...v,createdAt:Date.now()};
-  // Save to localStorage instantly
-  const l=lsG(k+'_list')||[];
+  const id = Date.now().toString();
+  const item = {id,...v,createdAt:Date.now()};
+  // Save locally instantly
+  const l = lsG(k+'_list')||[];
   l.unshift(item);
   lsS(k+'_list',l);
-  // Write to Firebase in background
-  fbAdd(k,item).catch(()=>{});
+  // Send to GAS in background
+  const action = k==='entries'?'addEntry': k==='requests'?'addRequest':'addEntry';
+  gasPost({action,...item}).catch(()=>{});
 }
 
 async function listUpdate(k,id,updates){
-  // Update localStorage instantly
-  const l=lsG(k+'_list')||[];
-  const idx=l.findIndex(r=>r.id===id);
+  // Update locally instantly
+  const l = lsG(k+'_list')||[];
+  const idx = l.findIndex(r=>r.id===id);
   if(idx!==-1){l[idx]={...l[idx],...updates};lsS(k+'_list',l);}
-  // Update Firebase in background
-  fbList(k).then(items=>{
-    const doc=items.find(i=>i.id===id);
-    if(doc){fbSet(k+'/'+doc.id,{...doc,...updates}).catch(()=>{});}
-  }).catch(()=>{});
+  // Update GAS in background
+  gasPost({action:'updateRequest',id,...updates}).catch(()=>{});
 }
 
 
