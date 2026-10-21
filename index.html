@@ -877,22 +877,37 @@ const GAS = 'https://script.google.com/macros/s/AKfycbzYgWw2zQQi1VElY80RqXL8lFVg
 // Google Apps Script API calls
 async function gasGet(action, email) {
   try {
-    const r = await fetch(GAS + '?action=' + action + '&email=' + encodeURIComponent(email) + '&t=' + Date.now());
+    const url = GAS + '?action=' + action + '&email=' + encodeURIComponent(email) + '&t=' + Date.now();
+    const r = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      redirect: 'follow'
+    });
     if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
+    const text = await r.text();
+    return JSON.parse(text);
+  } catch(e) {
+    console.warn('GAS GET error:', e);
+    return null;
+  }
 }
 
 async function gasPost(data) {
   try {
-    const r = await fetch(GAS, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
+    // GAS requires POST via form for CORS — use no-cors with GET workaround
+    const params = new URLSearchParams({...data, t: Date.now()});
+    const r = await fetch(GAS + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors',
+      redirect: 'follow'
     });
     if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
+    const text = await r.text();
+    return JSON.parse(text);
+  } catch(e) {
+    console.warn('GAS POST error:', e);
+    return null;
+  }
 }
 
 function lsG(k){try{return JSON.parse(localStorage.getItem('7e_'+k))||null;}catch{return null;}}
