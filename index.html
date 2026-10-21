@@ -523,8 +523,15 @@ function showApp(){
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
   // Load session from localStorage — instant, no network call
-  const s=lsG('session_'+currentEmp.email.replace(/[@.]/g,'_'));
-  if(s?.on&&s?.t){clockedIn=true;clockInTime=new Date(s.t);}
+  const sessionKey='session_'+currentEmp.email.replace(/[@.]/g,'_');
+  const s=lsG(sessionKey);
+  if(s&&s.on===true&&s.t){
+    clockedIn=true;
+    clockInTime=new Date(s.t);
+  } else {
+    clockedIn=false;
+    clockInTime=null;
+  }
   renderClockRow();
   checkNotifications();
   // Render immediately from localStorage cache — instant display
@@ -617,7 +624,9 @@ async function handleClock(){
     clockedIn=true;clockInTime=new Date();
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
-    await dbSet('session_'+currentEmp.email.replace(/[@.]/g,'_'),{on:true,t:clockInTime.toISOString(),late:isLate});
+    const sk='session_'+currentEmp.email.replace(/[@.]/g,'_');
+    lsS(sk,{on:true,t:clockInTime.toISOString(),late:isLate});
+    console.log('Session saved:', sk, lsG(sk));
     renderClockRow();
     if(isLate){const lb=cinMins-SHIFT_START_MINS;showToast('Clocked in '+(Math.floor(lb/60)>0?Math.floor(lb/60)+'h ':'')+lb%60+'m late');}
     else showToast('Clocked in at '+fmt(clockInTime)+' — on time');
@@ -626,7 +635,7 @@ async function handleClock(){
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     await listAdd('entries',{date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs,late:cinMins>SHIFT_START_MINS,type:'complete',emp:currentEmp.email});
-    await dbSet('session_'+currentEmp.email.replace(/[@.]/g,'_'),{on:false});
+    lsS('session_'+currentEmp.email.replace(/[@.]/g,'_'),{on:false});
     clockedIn=false;clearInterval(durTimer);durTimer=null;
     document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     document.getElementById('statsRow').style.display='none';
