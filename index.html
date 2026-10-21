@@ -727,37 +727,88 @@ async function renderLog(){
   const myReqs=reqs.filter(r=>r.emp===currentEmp.email);
   const approvedDates=new Set(myReqs.filter(r=>r.status==='approved').map(r=>r.date));
   const pendingDates=new Set(myReqs.filter(r=>r.status==='pending').map(r=>r.date));
-  const eMap={};myEntries.forEach(e=>{eMap[e.date]=e;});
+  // Group entries by date — multiple entries per day
+  const eMap={};
+  myEntries.forEach(e=>{
+    if(!eMap[e.date])eMap[e.date]=[];
+    eMap[e.date].push(e);
+  });
   const rows=[];
-  for(let i=0;i<14;i++){const d=new Date();d.setDate(d.getDate()-i);const key=d.toISOString().split('T')[0];rows.push({key,d,dow:d.getDay(),entry:eMap[key]||null,approved:approvedDates.has(key),pending:pendingDates.has(key)});}
+  for(let i=0;i<14;i++){const d=new Date();d.setDate(d.getDate()-i);const key=d.toISOString().split('T')[0];rows.push({key,d,dow:d.getDay(),entries:eMap[key]||[],approved:approvedDates.has(key),pending:pendingDates.has(key)});}
   document.getElementById('logList').innerHTML=rows.map(buildLogRow).join('');
 }
 
-function buildLogRow({key,d,dow,entry,approved,pending}){
+function buildLogRow({key,d,dow,entries,approved,pending}){
   const label=d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
-  if(dow===0||dow===6)return'<div class="log-row woff-row"><div><div class="row-date">'+label+'</div></div><div><span class="arr-tag tag-woff">W-OFF</span></div><div class="col-r" style="font-size:12px;color:var(--l-text3)">—</div><div class="col-r"><span class="arr-tag tag-woff">Weekly off</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div></div>';
-  const hasEntry=entry?.ci&&entry?.co;
-  if(approved)return'<div class="log-row"><div><div class="row-date">'+label+'</div>'+(hasEntry?'<div class="row-date-sub">'+fmt(new Date(entry.ci))+' – '+fmt(new Date(entry.co))+'</div>':'')+'</div><div><div class="vis-wrap"><div class="vis-fill" style="width:'+(hasEntry?Math.min(100,(entry.hrs/SHIFT_HOURS)*100):60)+'%"></div></div></div><div class="col-r"><span class="eff good">'+(hasEntry?Math.floor(entry.hrs)+'h '+Math.round((entry.hrs%1)*60)+'m':'—')+'</span></div><div class="col-r"><span class="arr-tag tag-reg-approved">Reg ✓</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button></div></div>';
+
+  // Weekend
+  if(dow===0||dow===6)return'<div class="log-row woff-row"><div><div class="row-date">'+label+'</div></div><div><span class="arr-tag tag-woff">W-OFF</span></div><div class="col-r">—</div><div class="col-r"><span class="arr-tag tag-woff">Weekly off</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div></div>';
+
+  // Regularization approved
+  if(approved){
+    const totalHrs=entries.reduce((s,e)=>s+(parseFloat(e.hrs)||0),0);
+    return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:'+Math.min(100,(totalHrs/SHIFT_HOURS)*100)+'%"></div></div></div><div class="col-r"><span class="eff good">'+Math.floor(totalHrs)+'h '+Math.round((totalHrs%1)*60)+'m</span></div><div class="col-r"><span class="arr-tag tag-reg-approved">Reg ✓</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button></div></div>';
+  }
+
+  // Regularization pending
   if(pending)return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div></div><div class="col-r"><span class="eff zero">—</span></div><div class="col-r"><span class="arr-tag tag-reg">Reg pending</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div></div>';
-  // Show in-progress entry if clocked in today
-  if(!hasEntry){
-    const isToday=key===today();
-    const inProgress=isToday&&clockedIn&&clockInTime;
-    if(inProgress){
-      const elapsedMs=new Date()-clockInTime;
-      const elH=Math.floor(elapsedMs/3600000),elM=Math.floor((elapsedMs%3600000)/60000);
-      const pct=Math.min(100,(elapsedMs/3600000/SHIFT_HOURS)*100);
-      const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
-      const isLate=cinMins>SHIFT_START_MINS;
-      return'<div class="log-row"><div><div class="row-date">'+label+'</div><div class="row-date-sub">'+fmt(clockInTime)+' – ongoing</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%;background:#22C97A"></div></div></div><div class="col-r"><span class="eff good">'+elH+'h '+elM+'m</span></div><div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div></div>';
-    }
+
+  // Complete entries for this day
+  const completeEntries=entries.filter(e=>e.ci&&e.co&&e.type!=='inprogress');
+  const totalHrs=completeEntries.reduce((s,e)=>s+(parseFloat(e.hrs)||0),0);
+  const isToday=key===today();
+  const inProgress=isToday&&clockedIn&&clockInTime;
+
+  // No entries and not currently clocked in
+  if(!completeEntries.length&&!inProgress){
     return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:0%"></div></div></div><div class="col-r"><span class="eff zero">0h 0m</span></div><div class="col-r"><span class="arr-tag tag-missing">Missing</span></div><div class="col-c"><button class="log-btn warn" onclick="openModal(\''+key+'\',\''+label+'\',null,null)"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>';
   }
-  const ci=new Date(entry.ci),co=new Date(entry.co);
-  const pct=Math.min(100,(entry.hrs/SHIFT_HOURS)*100);
-  const cinM=ci.getHours()*60+ci.getMinutes();
-  const isLate=entry.late||cinM>SHIFT_START_MINS;
-  return'<div class="log-row"><div><div class="row-date">'+label+'</div><div class="row-date-sub">'+fmt(ci)+' – '+fmt(co)+'</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%"></div></div></div><div class="col-r"><span class="eff '+(isLate?'late':'good')+'">'+Math.floor(entry.hrs)+'h '+Math.round((entry.hrs%1)*60)+'m</span></div><div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div><div class="col-c"><button class="log-btn ok" onclick="openModal(\''+key+'\',\''+label+'\',\''+entry.ci+'\',\''+entry.co+'\')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>';
+
+  // Build rows for each complete entry + in-progress
+  let html='';
+
+  // First entry shows the date label
+  let firstShown=false;
+  completeEntries.forEach((entry,idx)=>{
+    const ci=new Date(entry.ci),co=new Date(entry.co);
+    const cinM=ci.getHours()*60+ci.getMinutes();
+    const isLate=entry.late||cinM>SHIFT_START_MINS;
+    const pct=Math.min(100,(entry.hrs/SHIFT_HOURS)*100);
+    html+='<div class="log-row" style="'+(idx>0?'border-top:1px dashed #E2E6F0;':'')+'">';
+    html+='<div><div class="row-date">'+(idx===0?label:'<span style="color:var(--l-text3);font-size:11px">'+label+'</span>')+'</div><div class="row-date-sub">'+fmt(ci)+' – '+fmt(co)+'</div></div>';
+    html+='<div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%"></div></div></div>';
+    html+='<div class="col-r"><span class="eff '+(isLate?'late':'good')+'">'+Math.floor(entry.hrs)+'h '+Math.round((entry.hrs%1)*60)+'m</span></div>';
+    html+='<div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div>';
+    html+='<div class="col-c"><button class="log-btn ok" onclick="openModal(\''+key+'\',\''+label+'\',\''+entry.ci+'\',\''+entry.co+'\')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>';
+    html+='</div>';
+    firstShown=true;
+  });
+
+  // Show in-progress row if currently clocked in
+  if(inProgress){
+    const elapsedMs=new Date()-new Date(clockInTime);
+    const elH=Math.floor(elapsedMs/3600000),elM=Math.floor((elapsedMs%3600000)/60000);
+    const pct=Math.min(100,(elapsedMs/3600000/SHIFT_HOURS)*100);
+    const cinMins=new Date(clockInTime).getHours()*60+new Date(clockInTime).getMinutes();
+    const isLate=cinMins>SHIFT_START_MINS;
+    html+='<div class="log-row" style="'+(firstShown?'border-top:1px dashed #E2E6F0;':'')+'">';
+    html+='<div><div class="row-date">'+(firstShown?'<span style="color:var(--l-text3);font-size:11px">'+label+'</span>':label)+'</div><div class="row-date-sub">'+fmt(new Date(clockInTime))+' – ongoing</div></div>';
+    html+='<div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%;background:#22C97A"></div></div></div>';
+    html+='<div class="col-r"><span class="eff good">'+elH+'h '+elM+'m</span></div>';
+    html+='<div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div>';
+    html+='<div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div>';
+    html+='</div>';
+  }
+
+  // Show total if multiple entries
+  if(completeEntries.length>1){
+    html+='<div style="padding:6px 16px;background:#F0F3FA;border-bottom:1px solid var(--l-border);display:flex;justify-content:space-between;align-items:center;">';
+    html+='<span style="font-size:11px;color:var(--l-text3)">Total for '+label+'</span>';
+    html+='<span style="font-size:13px;font-weight:600;color:#1A7A4A">'+Math.floor(totalHrs)+'h '+Math.round((totalHrs%1)*60)+'m</span>';
+    html+='</div>';
+  }
+
+  return html;
 }
 
 let modalDate='';
