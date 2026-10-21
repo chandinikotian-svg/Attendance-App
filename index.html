@@ -549,6 +549,7 @@ function showApp(){
   }
   renderClockRow();
   checkNotifications();
+  renderLog(); // Re-render log after session restored so in-progress shows
   // Render immediately from localStorage cache — instant display
   renderLog();
   renderRequests();
@@ -559,6 +560,8 @@ function showApp(){
     renderRequests();
     if(currentEmp?.isManager)renderInbox();
   }, 15000);
+  // Update log every minute when clocked in to show running hours
+  setInterval(()=>{ if(clockedIn) renderLog(); }, 60000);
 }
 
 function logout(){
