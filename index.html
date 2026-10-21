@@ -663,15 +663,15 @@ function renderClockRow(){
 function startTimer(){if(durTimer)clearInterval(durTimer);tickTimer();durTimer=setInterval(tickTimer,1000);}
 function tickTimer(){
   if(!clockInTime)return;
-  const ms=new Date()-clockInTime;
+  // Always calculate from actual clock-in time — synced across devices
+  const ms=new Date()-new Date(clockInTime);
   const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
   const el=document.getElementById('timerDisp');if(el)el.textContent=pad(h)+':'+pad(m)+':'+pad(s);
-  const elH=Math.floor(ms/3600000),elM=Math.floor((ms%3600000)/60000);
   const remMs=Math.max(0,SHIFT_HOURS*3600000-ms);
   const rH=Math.floor(remMs/3600000),rM=Math.floor((remMs%3600000)/60000);
   const e1=document.getElementById('statElapsed'),e2=document.getElementById('statRemaining');
-  if(e1)e1.textContent=elH+'h '+elM+'m';if(e2)e2.textContent=rH+'h '+rM+'m';
-  document.getElementById('hrsWorked').textContent=elH+'h '+elM+'m';
+  if(e1)e1.textContent=h+'h '+m+'m';if(e2)e2.textContent=rH+'h '+rM+'m';
+  const hw=document.getElementById('hrsWorked');if(hw)hw.textContent=h+'h '+m+'m';
 }
 function pad(n){return String(n).padStart(2,'0');}
 
