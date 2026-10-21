@@ -549,7 +549,19 @@ function showApp(){
   renderClockRow();
   checkNotifications();
   renderLog();
-  // Don't clear cache — let GAS fetch update it
+  // Fetch all entries and requests from GAS on login to restore history
+  gasGet('getEntries', currentEmp.email).then(items=>{
+    if(items&&Array.isArray(items)&&items.length){
+      lsS('entries_list',items);
+      renderLog();
+    }
+  }).catch(()=>{});
+  gasGet('getRequests', currentEmp.email).then(items=>{
+    if(items&&Array.isArray(items)){
+      lsS('requests_list',items);
+      renderRequests();
+    }
+  }).catch(()=>{});
   // Always check GAS for latest session (cross-device sync)
   gasGet('getSession', currentEmp.email).then(gasSession=>{
     if(gasSession && gasSession.on===true && gasSession.t){
