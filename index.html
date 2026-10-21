@@ -640,7 +640,15 @@ async function handleClock(){
     const sessionData={on:true,t:clockInTime.toISOString(),late:isLate,emp:currentEmp.email};
     lsS(sk,sessionData);
     console.log('✅ Session saved:', lsG(sk));
+    // Save partial in-progress entry so log shows clock-in immediately
+    const existing=lsG('entries_list')||[];
+    const todayKey=today();
+    const hasToday=existing.find(e=>e.date===todayKey&&e.emp===currentEmp.email);
+    if(!hasToday){
+      await listAdd('entries',{date:todayKey,ci:clockInTime.toISOString(),co:null,hrs:0,late:isLate,type:'inprogress',emp:currentEmp.email});
+    }
     renderClockRow();
+    renderLog();
     if(isLate){const lb=cinMins-SHIFT_START_MINS;showToast('Clocked in '+(Math.floor(lb/60)>0?Math.floor(lb/60)+'h ':'')+lb%60+'m late');}
     else showToast('Clocked in at '+fmt(clockInTime)+' — on time');
   }else{
@@ -685,7 +693,20 @@ function buildLogRow({key,d,dow,entry,approved,pending}){
   const hasEntry=entry?.ci&&entry?.co;
   if(approved)return'<div class="log-row"><div><div class="row-date">'+label+'</div>'+(hasEntry?'<div class="row-date-sub">'+fmt(new Date(entry.ci))+' – '+fmt(new Date(entry.co))+'</div>':'')+'</div><div><div class="vis-wrap"><div class="vis-fill" style="width:'+(hasEntry?Math.min(100,(entry.hrs/SHIFT_HOURS)*100):60)+'%"></div></div></div><div class="col-r"><span class="eff good">'+(hasEntry?Math.floor(entry.hrs)+'h '+Math.round((entry.hrs%1)*60)+'m':'—')+'</span></div><div class="col-r"><span class="arr-tag tag-reg-approved">Reg ✓</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button></div></div>';
   if(pending)return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div></div><div class="col-r"><span class="eff zero">—</span></div><div class="col-r"><span class="arr-tag tag-reg">Reg pending</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div></div>';
-  if(!hasEntry)return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:0%"></div></div></div><div class="col-r"><span class="eff zero">0h 0m</span></div><div class="col-r"><span class="arr-tag tag-missing">Missing</span></div><div class="col-c"><button class="log-btn warn" onclick="openModal(\''+key+'\',\''+label+'\',null,null)"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>';
+  // Show in-progress entry if clocked in today
+  if(!hasEntry){
+    const isToday=key===today();
+    const inProgress=isToday&&clockedIn&&clockInTime;
+    if(inProgress){
+      const elapsedMs=new Date()-clockInTime;
+      const elH=Math.floor(elapsedMs/3600000),elM=Math.floor((elapsedMs%3600000)/60000);
+      const pct=Math.min(100,(elapsedMs/3600000/SHIFT_HOURS)*100);
+      const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
+      const isLate=cinMins>SHIFT_START_MINS;
+      return'<div class="log-row"><div><div class="row-date">'+label+'</div><div class="row-date-sub">'+fmt(clockInTime)+' – ongoing</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%;background:#22C97A"></div></div></div><div class="col-r"><span class="eff good">'+elH+'h '+elM+'m</span></div><div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div><div class="col-c"><button class="log-btn" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></button></div></div>';
+    }
+    return'<div class="log-row"><div><div class="row-date">'+label+'</div></div><div><div class="vis-wrap"><div class="vis-fill" style="width:0%"></div></div></div><div class="col-r"><span class="eff zero">0h 0m</span></div><div class="col-r"><span class="arr-tag tag-missing">Missing</span></div><div class="col-c"><button class="log-btn warn" onclick="openModal(\''+key+'\',\''+label+'\',null,null)"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></div>';
+  }
   const ci=new Date(entry.ci),co=new Date(entry.co);
   const pct=Math.min(100,(entry.hrs/SHIFT_HOURS)*100);
   const cinM=ci.getHours()*60+ci.getMinutes();
