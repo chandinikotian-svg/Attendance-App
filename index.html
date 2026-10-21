@@ -238,7 +238,15 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <div><div class="date-line1" id="dateMain"></div><div class="date-line2"><span class="date-hrs" id="hrsWorked">0h 0m</span> / 9h worked</div></div>
     </div>
     <div class="notif-wrap" id="notifWrap" style="display:none"></div>
-    <div class="clock-action" id="clockActionRow"></div>
+    <div class="clock-action" id="clockActionRow">
+      <button class="clock-in-full" onclick="handleClock()">
+        <span class="clock-in-label">Clock in</span>
+      </button>
+      <button class="punch-btn" onclick="showToast('Location punch recorded')">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span class="punch-label">Punch</span>
+      </button>
+    </div>
     <div class="stats-row" id="statsRow" style="display:none">
       <div class="stat"><div class="stat-label">Elapsed</div><div class="stat-val teal" id="statElapsed">0h 0m</div></div>
       <div class="stat"><div class="stat-label">Remaining</div><div class="stat-val" id="statRemaining">9h 0m</div></div>
