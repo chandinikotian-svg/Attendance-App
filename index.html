@@ -445,10 +445,21 @@ let db=null,currentEmp=null,clockedIn=false,clockInTime=null,durTimer=null;
 
 async function init(){
   const saved=lsG('currentEmp');
-  if(saved){currentEmp=saved;showApp();return;}
-  // Show login screen immediately — don't wait for Google
+  if(saved&&saved.email&&ORG[saved.email]){
+    // Always rebuild from ORG to get latest data
+    const emp=ORG[saved.email];
+    currentEmp={
+      email:saved.email,
+      name:emp.name,
+      managerName:emp.managerName,
+      managerEmail:emp.managerEmail,
+      isManager:MANAGERS.has(saved.email)
+    };
+    showApp();
+    return;
+  }
+  // Show login screen immediately
   document.getElementById('loginScreen').style.display='flex';
-  // Init Google Sign-In in background
   initGoogleSignIn();
 }
 
@@ -523,7 +534,7 @@ function showApp(){
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
   // Load session from localStorage — instant, no network call
-  const sessionKey='session_'+currentEmp.email.replace(/[@.]/g,'_');
+  const sessionKey='session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,'');
   const s=lsG(sessionKey);
   if(s&&s.on===true&&s.t){
     clockedIn=true;
@@ -624,7 +635,7 @@ async function handleClock(){
     clockedIn=true;clockInTime=new Date();
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
-    const sk='session_'+currentEmp.email.replace(/[@.]/g,'_');
+    const sk='session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,'');
     lsS(sk,{on:true,t:clockInTime.toISOString(),late:isLate});
     console.log('Session saved:', sk, lsG(sk));
     renderClockRow();
@@ -635,7 +646,7 @@ async function handleClock(){
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     await listAdd('entries',{date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs,late:cinMins>SHIFT_START_MINS,type:'complete',emp:currentEmp.email});
-    lsS('session_'+currentEmp.email.replace(/[@.]/g,'_'),{on:false});
+    lsS('session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,''),{on:false});
     clockedIn=false;clearInterval(durTimer);durTimer=null;
     document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     document.getElementById('statsRow').style.display='none';
@@ -646,7 +657,7 @@ async function handleClock(){
 
 async function loadSession(){
   try{
-    const s=await dbGet('session_'+currentEmp.email.replace(/[@.]/g,'_'));
+    const s=await dbGet('session_'+btoa(currentEmp.email).replace(/[^a-zA-Z0-9]/g,''));
     if(s?.on&&s?.t){clockedIn=true;clockInTime=new Date(s.t);}
     else{clockedIn=false;}
   }catch(e){clockedIn=false;}
