@@ -535,18 +535,17 @@ function showApp(){
   renderDateHeader();
   setInterval(renderDateHeader,30000);
   setInterval(checkNotifications,60000);
-  // Load session synchronously from localStorage
-  const sessionKey='sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_');
-  const s=lsG(sessionKey);
-  console.log('Loading session key:', '7e_'+sessionKey, '→', s);
-  if(s && s.on===true && s.t){
+  // Load session from localStorage
+  const s=lsG('clocksession');
+  console.log('Session found:', s, 'Current user:', currentEmp.email);
+  if(s && s.on===true && s.t && (!s.emp || s.emp===currentEmp.email)){
     clockedIn=true;
     clockInTime=new Date(s.t);
-    console.log('Restored clock-in at:', clockInTime);
+    console.log('✅ Restored clock-in:', clockInTime);
   } else {
     clockedIn=false;
     clockInTime=null;
-    console.log('No active session found');
+    console.log('No session for this user');
   }
   renderClockRow();
   checkNotifications();
@@ -637,10 +636,10 @@ async function handleClock(){
     clockedIn=true;clockInTime=new Date();
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
-    const sk='sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_');
-    const sessionData={on:true,t:clockInTime.toISOString(),late:isLate};
+    const sk='clocksession';
+    const sessionData={on:true,t:clockInTime.toISOString(),late:isLate,emp:currentEmp.email};
     lsS(sk,sessionData);
-    console.log('✅ Session saved to key: 7e_'+sk, '→', lsG(sk));
+    console.log('✅ Session saved:', lsG(sk));
     renderClockRow();
     if(isLate){const lb=cinMins-SHIFT_START_MINS;showToast('Clocked in '+(Math.floor(lb/60)>0?Math.floor(lb/60)+'h ':'')+lb%60+'m late');}
     else showToast('Clocked in at '+fmt(clockInTime)+' — on time');
@@ -649,7 +648,7 @@ async function handleClock(){
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     await listAdd('entries',{date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs,late:cinMins>SHIFT_START_MINS,type:'complete',emp:currentEmp.email});
-    lsS('sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_'),{on:false});
+    lsS('clocksession',{on:false});
     clockedIn=false;clearInterval(durTimer);durTimer=null;
     document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     document.getElementById('statsRow').style.display='none';
@@ -660,7 +659,7 @@ async function handleClock(){
 
 async function loadSession(){
   try{
-    const s=lsG('sess_'+currentEmp.email.replace(/[^a-zA-Z0-9]/g,'_'));
+    const s=lsG('clocksession');
     if(s?.on&&s?.t){clockedIn=true;clockInTime=new Date(s.t);}
     else{clockedIn=false;}
   }catch(e){clockedIn=false;}
