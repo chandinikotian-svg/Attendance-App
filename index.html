@@ -551,12 +551,19 @@ function showApp(){
   renderLog();
   // Fetch all entries and requests from GAS on login to restore history
   gasGet('getEntries', currentEmp.email).then(items=>{
-    if(items&&Array.isArray(items)&&items.length){
-      lsS('entries_list',items);
+    console.log('📥 GAS entries on login:', items?.length, items);
+    if(items&&Array.isArray(items)){
+      // Merge with localStorage
+      const local=lsG('entries_list')||[];
+      const gasIds=new Set(items.map(e=>String(e.id)));
+      const localOnly=local.filter(e=>!gasIds.has(String(e.id)));
+      const merged=[...items,...localOnly];
+      lsS('entries_list',merged);
       renderLog();
     }
-  }).catch(()=>{});
+  }).catch(e=>console.warn('GAS entries fetch failed:',e));
   gasGet('getRequests', currentEmp.email).then(items=>{
+    console.log('📥 GAS requests on login:', items?.length);
     if(items&&Array.isArray(items)){
       lsS('requests_list',items);
       renderRequests();
