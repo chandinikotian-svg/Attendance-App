@@ -695,16 +695,10 @@ async function handleClock(){
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
     const sessionData={on:true,t:clockInTime.toISOString(),late:isLate,emp:currentEmp.email,email:currentEmp.email};
-    lsS('clocksession',sessionData); // instant local save
-    gasPost({action:'setSession',...sessionData}).catch(()=>{}); // background GAS sync
-    console.log('✅ Session saved:', sessionData);
-    // Save partial in-progress entry so log shows clock-in immediately
-    const existing=lsG('entries_list')||[];
-    const todayKey=today();
-    const hasToday=existing.find(e=>e.date===todayKey&&e.emp===currentEmp.email);
-    if(!hasToday){
-      await listAdd('entries',{date:todayKey,ci:clockInTime.toISOString(),co:null,hrs:0,late:isLate,type:'inprogress',emp:currentEmp.email});
-    }
+    lsS('clocksession',sessionData);
+    // Save session to GAS
+    const sp=new URLSearchParams({action:'setSession',email:currentEmp.email,on:'true',t:clockInTime.toISOString(),late:isLate.toString()});
+    fetch(GAS+'?'+sp.toString(),{method:'GET',mode:'cors',redirect:'follow'}).catch(()=>{});
     renderClockRow();
     renderLog();
     if(isLate){const lb=cinMins-SHIFT_START_MINS;showToast('Clocked in '+(Math.floor(lb/60)>0?Math.floor(lb/60)+'h ':'')+lb%60+'m late');}
@@ -726,32 +720,21 @@ async function handleClock(){
       type:'complete',
       createdAt:Date.now()
     };
-    // Save to localStorage immediately
+    // 1. Save to localStorage immediately
     const l=lsG('entries_list')||[];
-    l.unshift(entryData);
-    lsS('entries_list',l);
-    console.log('✅ Entry saved to localStorage:', entryData);
-    console.log('📋 Total entries in localStorage:', l.length);
-    // Update dayEntries map so popup shows it immediately
+    const filtered=l.filter(e=>!(e.emp===currentEmp.email&&e.date===today()&&e.type==='inprogress'));
+    filtered.unshift(entryData);
+    lsS('entries_list',filtered);
+    console.log('✅ Saved to localStorage. Entries today:',filtered.filter(e=>e.date===today()).length);
+    // 2. Update dayEntries map for popup
     if(!window._dayEntries)window._dayEntries={};
     if(!window._dayEntries[today()])window._dayEntries[today()]=[];
+    window._dayEntries[today()]=window._dayEntries[today()].filter(e=>e.type!=='inprogress');
     window._dayEntries[today()].push(entryData);
-    // Save to GAS in background
-    const params=new URLSearchParams({
-      action:'addEntry',
-      emp:currentEmp.email,
-      date:today(),
-      ci:clockInTime.toISOString(),
-      co:out.toISOString(),
-      hrs:hrs.toString(),
-      late:(cinMins>SHIFT_START_MINS).toString(),
-      type:'complete',
-      id:entryId
-    });
+    // 3. Save to GAS
+    const params=new URLSearchParams({action:'addEntry',emp:currentEmp.email,date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs:hrs.toString(),late:(cinMins>SHIFT_START_MINS).toString(),type:'complete',id:entryId});
     fetch(GAS+'?'+params.toString(),{method:'GET',mode:'cors',redirect:'follow'})
-      .then(r=>r.json())
-      .then(d=>console.log('✅ Entry saved to GAS:',d))
-      .catch(e=>console.warn('GAS save error:',e));
+      .then(r=>r.text()).then(d=>console.log('✅ GAS saved:',d)).catch(e=>console.warn('⚠️ GAS fail:',e));
     const outSession={on:false,emp:currentEmp.email,email:currentEmp.email};
     lsS('clocksession',outSession);
     gasPost({action:'setSession',...outSession}).catch(()=>{});
