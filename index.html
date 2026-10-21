@@ -852,30 +852,16 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
 
 // Keka-style inline popup
 let _activePopup=null;
-async function openLogModal(btn){
+function openLogModal(btn){
   const date=btn.dataset.date;
   const label=btn.dataset.label;
-  // Close any existing popup
   if(_activePopup){_activePopup.remove();_activePopup=null;}
 
-  // Always fetch fresh entries from GAS for this date
-  let allEntries=[];
-  try{
-    const gasEntries=await gasGet('getEntries',currentEmp.email);
-    if(gasEntries&&Array.isArray(gasEntries)){
-      allEntries=gasEntries.filter(e=>e.date===date&&e.ci&&e.co&&e.type!=='inprogress');
-      // Update day entries map
-      if(!window._dayEntries)window._dayEntries={};
-      // Group all by date
-      gasEntries.forEach(e=>{
-        if(!window._dayEntries[e.date])window._dayEntries[e.date]=[];
-        if(!window._dayEntries[e.date].find(x=>x.id===e.id))
-          window._dayEntries[e.date].push(e);
-      });
-    }
-  }catch{}
-
-  const entries=allEntries.length?allEntries:((window._dayEntries&&window._dayEntries[date])||[]);
+  // Get entries from localStorage immediately
+  const allLocal=lsG('entries_list')||[];
+  const localEntries=allLocal.filter(e=>e.emp===currentEmp.email&&e.date===date&&e.ci&&e.co&&e.type!=='inprogress');
+  const dayEntries=(window._dayEntries&&window._dayEntries[date])||[];
+  const entries=localEntries.length?localEntries:dayEntries;
   const firstCi=entries[0]?.ci||null;
   const lastCo=entries[entries.length-1]?.co||null;
 
