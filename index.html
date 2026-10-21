@@ -575,7 +575,7 @@ function showApp(){
   renderLog();
   renderRequests();
   if(currentEmp.isManager)renderInbox();
-  // Auto-refresh data every 15 seconds — no sign out needed
+  // Auto-refresh data every 15 seconds
   setInterval(()=>{
     renderLog();
     renderRequests();
@@ -583,6 +583,26 @@ function showApp(){
   }, 15000);
   // Update log every minute when clocked in to show running hours
   setInterval(()=>{ if(clockedIn) renderLog(); }, 60000);
+  // Check GAS for session changes every 10 seconds (cross-device sync)
+  setInterval(()=>{
+    if(!currentEmp) return;
+    gasGet('getSession', currentEmp.email).then(gasSession=>{
+      if(!gasSession) return;
+      if(gasSession.on===true && gasSession.t && !clockedIn){
+        // Clocked in on another device
+        clockedIn=true;
+        clockInTime=new Date(gasSession.t);
+        lsS('clocksession',{...gasSession,emp:currentEmp.email});
+        renderClockRow(); renderLog();
+        showToast('Session synced from another device');
+      } else if(gasSession.on===false && clockedIn){
+        // Clocked out on another device
+        clockedIn=false; clockInTime=null;
+        lsS('clocksession',{on:false,emp:currentEmp.email});
+        renderClockRow(); renderLog();
+      }
+    }).catch(()=>{});
+  }, 10000);
 }
 
 function logout(){
