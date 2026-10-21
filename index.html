@@ -701,16 +701,43 @@ async function handleClock(){
     const out=new Date();
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
-    // Save entry to GAS directly via GET
-    const entryData={action:'addEntry',emp:currentEmp.email,date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs:hrs.toString(),late:(cinMins>SHIFT_START_MINS).toString(),type:'complete',id:Date.now().toString()};
-    try{
-      const params=Object.keys(entryData).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(entryData[k])).join('&');
-      await fetch(GAS+'?'+params,{method:'GET',mode:'cors',redirect:'follow'});
-    }catch{}
-    // Save to localStorage too
+    // Save entry
+    const entryId=Date.now().toString();
+    const entryData={
+      id:entryId,
+      emp:currentEmp.email,
+      date:today(),
+      ci:clockInTime.toISOString(),
+      co:out.toISOString(),
+      hrs:hrs,
+      late:cinMins>SHIFT_START_MINS,
+      type:'complete',
+      createdAt:Date.now()
+    };
+    // Save to localStorage immediately
     const l=lsG('entries_list')||[];
-    l.unshift({...entryData,createdAt:Date.now()});
+    l.unshift(entryData);
     lsS('entries_list',l);
+    // Update dayEntries map so popup shows it immediately
+    if(!window._dayEntries)window._dayEntries={};
+    if(!window._dayEntries[today()])window._dayEntries[today()]=[];
+    window._dayEntries[today()].push(entryData);
+    // Save to GAS in background
+    const params=new URLSearchParams({
+      action:'addEntry',
+      emp:currentEmp.email,
+      date:today(),
+      ci:clockInTime.toISOString(),
+      co:out.toISOString(),
+      hrs:hrs.toString(),
+      late:(cinMins>SHIFT_START_MINS).toString(),
+      type:'complete',
+      id:entryId
+    });
+    fetch(GAS+'?'+params.toString(),{method:'GET',mode:'cors',redirect:'follow'})
+      .then(r=>r.json())
+      .then(d=>console.log('✅ Entry saved to GAS:',d))
+      .catch(e=>console.warn('GAS save error:',e));
     const outSession={on:false,emp:currentEmp.email,email:currentEmp.email};
     lsS('clocksession',outSession);
     gasPost({action:'setSession',...outSession}).catch(()=>{});
@@ -734,8 +761,25 @@ async function loadSession(){
 
 async function renderLog(){
   if(!currentEmp)return;
-  const entries=await listGet('entries');
-  const reqs=await listGet('requests');
+  // Use localStorage immediately for instant display
+  const entries=lsG('entries_list')||[];
+  const reqs=lsG('requests_list')||[];
+  // Render immediately with cached data
+  _renderLogWithData(entries,reqs);
+  // Then fetch fresh from GAS and re-render
+  gasGet('getEntries',currentEmp.email).then(gasEntries=>{
+    if(gasEntries&&Array.isArray(gasEntries)&&gasEntries.length){
+      lsS('entries_list',gasEntries);
+      gasGet('getRequests',currentEmp.email).then(gasReqs=>{
+        const reqs2=gasReqs&&Array.isArray(gasReqs)?gasReqs:(lsG('requests_list')||[]);
+        lsS('requests_list',reqs2);
+        _renderLogWithData(gasEntries,reqs2);
+      }).catch(()=>{});
+    }
+  }).catch(()=>{});
+}
+
+function _renderLogWithData(entries,reqs){
   const myEntries=entries.filter(e=>e.emp===currentEmp.email);
   const myReqs=reqs.filter(r=>r.emp===currentEmp.email);
   const approvedDates=new Set(myReqs.filter(r=>r.status==='approved').map(r=>r.date));
