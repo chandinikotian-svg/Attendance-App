@@ -527,8 +527,10 @@ function showApp(){
   document.getElementById('userPillName').textContent=currentEmp.name.split(' ')[0];
   // Show inbox tab for managers
   if(currentEmp.isManager){
-    document.getElementById('inboxNavBtn').style.display='flex';
-    document.getElementById('mgrBadge').style.display='inline';
+    const inboxBtn=document.getElementById('inboxNavBtn');
+    if(inboxBtn)inboxBtn.style.display='flex';
+    const mgrBadge=document.getElementById('mgrBadge');
+    if(mgrBadge)mgrBadge.style.display='inline';
   }
   renderDateHeader();
   setInterval(renderDateHeader,30000);
