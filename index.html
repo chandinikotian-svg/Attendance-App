@@ -718,6 +718,8 @@ async function handleClock(){
     const l=lsG('entries_list')||[];
     l.unshift(entryData);
     lsS('entries_list',l);
+    console.log('✅ Entry saved to localStorage:', entryData);
+    console.log('📋 Total entries in localStorage:', l.length);
     // Update dayEntries map so popup shows it immediately
     if(!window._dayEntries)window._dayEntries={};
     if(!window._dayEntries[today()])window._dayEntries[today()]=[];
@@ -766,15 +768,20 @@ async function renderLog(){
   const reqs=lsG('requests_list')||[];
   // Render immediately with cached data
   _renderLogWithData(entries,reqs);
-  // Then fetch fresh from GAS and re-render
+  // Fetch from GAS and MERGE with localStorage (never replace)
   gasGet('getEntries',currentEmp.email).then(gasEntries=>{
-    if(gasEntries&&Array.isArray(gasEntries)&&gasEntries.length){
-      lsS('entries_list',gasEntries);
+    if(gasEntries&&Array.isArray(gasEntries)){
+      // Merge: keep localStorage entries not yet in GAS
+      const local=lsG('entries_list')||[];
+      const gasIds=new Set(gasEntries.map(e=>e.id));
+      const localOnly=local.filter(e=>!gasIds.has(e.id));
+      const merged=[...gasEntries,...localOnly];
+      lsS('entries_list',merged);
       gasGet('getRequests',currentEmp.email).then(gasReqs=>{
         const reqs2=gasReqs&&Array.isArray(gasReqs)?gasReqs:(lsG('requests_list')||[]);
         lsS('requests_list',reqs2);
-        _renderLogWithData(gasEntries,reqs2);
-      }).catch(()=>{});
+        _renderLogWithData(merged,reqs2);
+      }).catch(()=>_renderLogWithData(merged,lsG('requests_list')||[]));
     }
   }).catch(()=>{});
 }
