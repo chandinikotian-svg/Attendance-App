@@ -703,15 +703,26 @@ async function handleClock(){
     const out=new Date();
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
-    await listAdd('entries',{date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs,late:cinMins>SHIFT_START_MINS,type:'complete',emp:currentEmp.email});
+    // Save entry to GAS directly via GET
+    const entryData={action:'addEntry',emp:currentEmp.email,date:today(),ci:clockInTime.toISOString(),co:out.toISOString(),hrs:hrs.toString(),late:(cinMins>SHIFT_START_MINS).toString(),type:'complete',id:Date.now().toString()};
+    try{
+      const params=Object.keys(entryData).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(entryData[k])).join('&');
+      await fetch(GAS+'?'+params,{method:'GET',mode:'cors',redirect:'follow'});
+    }catch{}
+    // Save to localStorage too
+    const l=lsG('entries_list')||[];
+    l.unshift({...entryData,createdAt:Date.now()});
+    lsS('entries_list',l);
     const outSession={on:false,emp:currentEmp.email,email:currentEmp.email};
     lsS('clocksession',outSession);
     gasPost({action:'setSession',...outSession}).catch(()=>{});
     clockedIn=false;clearInterval(durTimer);durTimer=null;
     document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     document.getElementById('statsRow').style.display='none';
-    renderClockRow();renderLog();
+    renderClockRow();
     showToast('Clocked out · '+Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m recorded');
+    // Re-render log after short delay to get fresh GAS data
+    setTimeout(()=>renderLog(), 1500);
   }
 }
 
@@ -987,20 +998,18 @@ function lsS(k,v){try{localStorage.setItem('7e_'+k,JSON.stringify(v));}catch{}}
 async function dbGet(k){return lsG(k);}
 async function dbSet(k,v){lsS(k,v);}
 async function listGet(k){
-  // Return localStorage immediately (instant)
-  const cached = lsG(k+'_list')||[];
-  // Sync from GAS in background — updates localStorage for next read
-  if(currentEmp){
-    const action = k==='entries'?'getEntries': k==='requests'?'getRequests': k==='inbox'?'getInbox':null;
-    if(action){
-      gasGet(action, currentEmp.email).then(items=>{
-        if(items && Array.isArray(items) && items.length){
-          lsS(k+'_list', items);
-        }
-      }).catch(()=>{});
-    }
+  if(!currentEmp) return lsG(k+'_list')||[];
+  const action = k==='entries'?'getEntries': k==='requests'?'getRequests': k==='inbox'?'getInbox':null;
+  if(action){
+    try{
+      const items = await gasGet(action, currentEmp.email);
+      if(items && Array.isArray(items)){
+        lsS(k+'_list', items);
+        return items;
+      }
+    }catch{}
   }
-  return cached;
+  return lsG(k+'_list')||[];
 }
 
 async function listAdd(k,v){
@@ -1010,9 +1019,14 @@ async function listAdd(k,v){
   const l = lsG(k+'_list')||[];
   l.unshift(item);
   lsS(k+'_list',l);
-  // Send to GAS in background
+  // Send to GAS — wait for it so data is in sheet before next read
   const action = k==='entries'?'addEntry': k==='requests'?'addRequest':'addEntry';
-  gasPost({action,...item}).catch(()=>{});
+  try{ await gasGet(action+'&'+new URLSearchParams(item).toString(), currentEmp?.email||''); }catch{}
+  // Actually use proper GET with all params
+  try{
+    const params = Object.keys(item).map(key=>encodeURIComponent(key)+'='+encodeURIComponent(item[key])).join('&');
+    await fetch(GAS+'?action='+action+'&'+params, {method:'GET', mode:'cors', redirect:'follow'});
+  }catch{}
 }
 
 async function listUpdate(k,id,updates){
