@@ -568,13 +568,14 @@ function checkNotifications(){
 }
 
 function renderClockRow(){
+  // Small delay to ensure DOM is ready
+  setTimeout(()=>{
   const row=document.getElementById('clockActionRow');
-  if(!row) return;
-  // Always show clock button — regardless of shift hours
+  if(!row){renderClockRow();return;}
   row.style.display='flex';
   if(!clockedIn){
     row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button><button class="punch-btn" onclick="showToast(\'Location punch recorded\')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="punch-label">Punch</span></button>';
-    document.getElementById('statsRow').style.display='none';
+    const sr=document.getElementById('statsRow');if(sr)sr.style.display='none';
   }else{
     row.innerHTML='<button class="clock-main" onclick="handleClock()"><div class="clock-left out-col"><div class="clock-left-label">Clock Out</div></div><div class="clock-right"><div class="clock-timer" id="timerDisp">00:00:00</div><div class="clock-cin">↙ '+fmt(clockInTime)+'</div></div></button><button class="punch-btn" onclick="showToast(\'Location punch recorded\')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="punch-label">Punch</span></button>';
     document.getElementById('statsRow').style.display='flex';
@@ -582,6 +583,7 @@ function renderClockRow(){
     startTimer();
   }
   checkNotifications();
+  },50);
 }
 
 function startTimer(){if(durTimer)clearInterval(durTimer);tickTimer();durTimer=setInterval(tickTimer,1000);}
