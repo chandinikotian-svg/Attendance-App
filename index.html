@@ -803,14 +803,16 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
   html+='<div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%"></div></div></div>';
   html+='<div class="col-r"><span class="eff '+(isLate?'late':'good')+'">'+effHrs+'</span></div>';
   html+='<div class="col-r"><span class="arr-tag '+(isLate?'tag-late':'tag-ontime')+'">'+(isLate?'Late':'On time')+'</span></div>';
-  html+='<div class="col-c"><button class="log-btn ok" onclick="openLogModal(\''+key+'\',\''+label+'\')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>';
+  html+='<div class="col-c"><button class="log-btn ok" onclick="openLogModal(this)" data-date="'+key+'" data-label="'+label+'"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>';
   html+='</div>';
   return html;
 }
 
 // Keka-style inline popup
 let _activePopup=null;
-function openLogModal(date,label){
+function openLogModal(btn){
+  const date=btn.dataset.date;
+  const label=btn.dataset.label;
   // Close any existing popup
   if(_activePopup){_activePopup.remove();_activePopup=null;}
 
