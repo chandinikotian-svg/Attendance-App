@@ -453,9 +453,6 @@ async function init(){
       managerEmail:emp.managerEmail,
       isManager:MANAGERS.has(saved.email)
     };
-    // Hide login, show app immediately — no flicker
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('mainApp').style.display='block';
     showApp();
     return;
   }
@@ -487,20 +484,17 @@ function triggerGoogleLogin(){
     },1000);
     return;
   }
-  google.accounts.id.prompt(notification=>{
-    if(notification.isNotDisplayed()||notification.isSkippedMoment()){
-      // Use popup as fallback
-      const tmp=document.createElement('div');
-      tmp.style.cssText='position:fixed;opacity:0;pointer-events:none';
-      document.body.appendChild(tmp);
-      google.accounts.id.renderButton(tmp,{theme:'outline',size:'large'});
-      setTimeout(()=>{
-        const btn=tmp.querySelector('div[role=button]');
-        if(btn)btn.click();
-        else showLoginErr('Pop-up blocked. Please allow pop-ups for this site.');
-      },100);
-    }
-  });
+  // Use popup login directly
+  const tmp=document.createElement('div');
+  tmp.style.cssText='position:fixed;opacity:0;pointer-events:none;top:0;left:0';
+  document.body.appendChild(tmp);
+  google.accounts.id.renderButton(tmp,{theme:'outline',size:'large'});
+  setTimeout(()=>{
+    const btn=tmp.querySelector('div[role=button]');
+    if(btn){btn.click();}
+    else{google.accounts.id.prompt();}
+    setTimeout(()=>tmp.remove(),3000);
+  },200);
 }
 
 // Init Google when script loads — non-blocking
