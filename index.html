@@ -966,12 +966,8 @@ function openModal(date,label,ci,co){
   document.getElementById('mgrInfo').innerHTML='📧 Request will go to <strong>'+currentEmp.managerName+'\'s Inbox</strong> for approval.';
   // If no ci passed but employee is currently clocked in, use that
   if(!ci && clockedIn && clockInTime) ci = clockInTime.toISOString();
-  const cinTime=ci?fmt(new Date(ci)):'Not recorded';
-  const coutTime=co?fmt(new Date(co)):'Not recorded';
   document.getElementById('rIn').value=ci?new Date(ci).toTimeString().slice(0,5):'';
   document.getElementById('rOut').value=co?new Date(co).toTimeString().slice(0,5):'';
-  document.getElementById('rInDisplay').textContent=cinTime;
-  document.getElementById('rOutDisplay').textContent=coutTime;
   document.getElementById('rReasonSelect').value='';
   document.getElementById('rNote').value='';
   document.getElementById('errReason').style.display='none';
