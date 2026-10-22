@@ -260,21 +260,15 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <div style="display:flex;gap:16px;">
         <button onclick="showODModal()" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
           <div style="width:48px;height:48px;background:#FCB913;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V9.5Z" fill="#1F2957"/><rect x="9" y="15" width="6" height="6" fill="#1F2957"/></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V9.5Z" fill="#1F2957"/></svg>
           </div>
           <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">Apply<br>On Duty</div>
         </button>
-        <button onclick="showPane('log')" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <button onclick="showToast('WFH coming soon!')" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
           <div style="width:48px;height:48px;background:#27A1B7;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" fill="white" fill-opacity="0.25"/><rect x="7" y="7" width="10" height="2" rx="1" fill="white"/><rect x="7" y="11" width="10" height="2" rx="1" fill="white"/><rect x="7" y="15" width="6" height="2" rx="1" fill="white"/></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="13" width="20" height="8" rx="2" fill="white" fill-opacity="0.25"/><path d="M2 13L12 4L22 13" fill="white" fill-opacity="0.4"/><rect x="9" y="15" width="6" height="6" rx="1" fill="white"/><rect x="5" y="9" width="3" height="3" rx="0.5" fill="white" fill-opacity="0.6"/><rect x="16" y="9" width="3" height="3" rx="0.5" fill="white" fill-opacity="0.6"/></svg>
           </div>
-          <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">My<br>Log</div>
-        </button>
-        <button onclick="showPane('requests')" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          <div style="width:48px;height:48px;background:#FCB913;border-radius:12px;display:flex;align-items:center;justify-content:center;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" fill="#1F2957" fill-opacity="0.3"/><path d="M8 12L11 15L16 9" stroke="#1F2957" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">Regularize</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">Apply<br>WFH</div>
         </button>
       </div>
     </div>
