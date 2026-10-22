@@ -84,7 +84,10 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
 .clock-timer{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-0.5px;}
 .clock-cin{font-size:11px;color:var(--teal);margin-top:3px;}
 .clock-in-full{flex:1;width:100%;padding:18px;background:var(--teal);border-radius:16px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;}
-.clock-out-full{flex:1;width:100%;padding:18px;background:#E53935;border-radius:16px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;}
+.clock-out-full{flex:1.6;padding:18px;background:#E53935;border-radius:16px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;}
+.timer-box{flex:1;background:var(--navy2);border:1px solid var(--border);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 8px;gap:4px;}
+.timer-text{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:1px;}
+.timer-cin{font-size:11px;color:var(--teal);font-weight:500;}
 .clock-in-label{font-size:18px;font-weight:700;color:white;}
 .stats-row{display:flex;gap:10px;padding:14px 18px 0;}
 .stat{flex:1;background:var(--navy2);border-radius:12px;padding:12px;border:1px solid var(--border);}
@@ -670,7 +673,7 @@ function renderClockRow(){
     row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button>';
     const sr=document.getElementById('statsRow');if(sr)sr.style.display='none';
   }else{
-    row.innerHTML='<button class="clock-out-full" onclick="handleClock()"><div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span class="clock-in-label">Clock Out</span><span id="timerDisp" style="font-size:13px;font-weight:500;opacity:0.85;letter-spacing:1px">00:00:00</span><span style="font-size:11px;opacity:0.7">✓ '+fmt(clockInTime)+'</span></div></button>';
+    row.innerHTML='<button class="clock-out-full" onclick="handleClock()"><span class="clock-in-label">Clock Out</span></button><div class="timer-box"><span id="timerDisp" class="timer-text">00:00:00</span><span class="timer-cin">✓ '+fmt(clockInTime)+'</span></div>';
     const sr=document.getElementById('statsRow');
     if(sr){
       sr.style.display='flex';
