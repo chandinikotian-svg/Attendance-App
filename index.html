@@ -131,6 +131,7 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
 .req-date{font-size:14px;font-weight:500;color:var(--l-text);}
 .req-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;}
 .s-pending{background:#FEF3E2;color:#B45309;}
+.s-cancelled{background:#FEE2E2;color:#B91C1C;}
 .s-approved{background:#E6F4ED;color:#1A7A4A;}
 .s-rejected{background:#FBEAE8;color:#C0392B;}
 .req-detail{font-size:12px;color:var(--l-text2);margin-bottom:2px;}
@@ -1053,7 +1054,7 @@ async function renderRequests(){
   badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;
   const el=document.getElementById('reqList');
   if(!myReqs.length){el.innerHTML='<div class="empty">No regularization requests yet.</div>';return;}
-  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+(r.status==='approved'?'Approved ✓':r.status==='rejected'?'Rejected ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+fmtTime(r.cin)+' → '+fmtTime(r.cout)+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500;font-style:normal">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="req-mgr">Sent to '+r.managerName+'</div>'+(r.status==="pending"?'<button onclick="cancelRequest(\''+r.id+'\')" style="font-size:11px;color:#E53935;background:none;border:1px solid #E53935;border-radius:6px;padding:3px 10px;cursor:pointer;font-weight:600">Cancel</button>':'')+'</div></div>').join('');
+  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+((r.status||'').toLowerCase()==='approved'?'Approved ✓':(r.status||'').toLowerCase()==='rejected'?'Rejected ✗':(r.status||'').toLowerCase()==='cancelled'?'Cancelled ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+fmtTime(r.cin)+' → '+fmtTime(r.cout)+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500;font-style:normal">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="req-mgr">Sent to '+r.managerName+'</div>'+(String(r.status).toLowerCase()==="pending"?'<button onclick="cancelRequest(\''+r.id+'\')" style="font-size:11px;color:#E53935;background:none;border:1px solid #E53935;border-radius:6px;padding:3px 10px;cursor:pointer;font-weight:600">Cancel</button>':'')+'</div></div>').join('');
 }
 
 // ── INBOX (Manager) ───────────────────────────────────────
