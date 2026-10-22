@@ -1055,8 +1055,17 @@ async function renderRequests(){
 // ── INBOX (Manager) ───────────────────────────────────────
 async function renderInbox(){
   if(!currentEmp?.isManager)return;
-  const reqs=await listGet('requests');
-  const myInbox=reqs.filter(r=>r.managerEmail===currentEmp.email).sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
+  // Always fetch fresh from GAS for inbox — need all employees' requests
+  let myInbox=[];
+  try{
+    const gasItems=await gasGet('getInbox',currentEmp.email);
+    console.log('📥 Inbox from GAS:',gasItems?.length, gasItems);
+    if(gasItems&&Array.isArray(gasItems)){
+      myInbox=gasItems.sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
+    }
+  }catch(e){
+    console.warn('Inbox fetch failed:',e);
+  }
   const pending=myInbox.filter(r=>r.status==='pending').length;
   const badge=document.getElementById('inboxBadge');
   badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;
