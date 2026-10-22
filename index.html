@@ -839,11 +839,15 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
 
   // Complete entries for this day
   const completeEntries=entries.filter(e=>e.ci&&e.co&&e.type!=='inprogress');
-  // Calculate total hours from actual ci/co times, not stored hrs field
+  // Sort entries by clock-in time ascending
+  completeEntries.sort((a,b)=>new Date(a.ci)-new Date(b.ci));
+  // Calculate total hours - each ci to co, skip invalid pairs
   const totalHrs=completeEntries.reduce((s,e)=>{
     const ci=new Date(e.ci), co=new Date(e.co);
     if(isNaN(ci)||isNaN(co)||co<=ci) return s;
-    return s+(co-ci)/3600000;
+    const hrs=(co-ci)/3600000;
+    if(hrs>24) return s; // skip obviously wrong entries
+    return s+hrs;
   },0);
   const isToday=key===today();
   const inProgress=isToday&&clockedIn&&clockInTime&&!completeEntries.length;
