@@ -562,6 +562,8 @@ function showApp(){
       renderLog();
     }
   }).catch(e=>console.warn('GAS entries fetch failed:',e));
+  // Always fetch fresh requests from GAS — clear cache first
+  lsS('requests_list',[]);
   gasGet('getRequests', currentEmp.email).then(items=>{
     console.log('📥 GAS requests on login:', items?.length);
     if(items&&Array.isArray(items)){
