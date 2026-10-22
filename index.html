@@ -997,10 +997,14 @@ async function submitReg(){
   const note=document.getElementById('rNote').value.trim();
   const btn=document.getElementById('submitBtn');
   btn.textContent='Submitting…';btn.disabled=true;
+  // Convert HH:MM to full ISO string for proper display
+  const cinVal=document.getElementById('rIn').value;
+  const coutVal=document.getElementById('rOut').value;
+  const toISO=(t)=>{if(!t)return'';const[h,m]=t.split(':');const d=new Date();d.setHours(+h,+m,0,0);return d.toISOString();};
   await listAdd('requests',{
     id:Date.now().toString(),date:modalDate,
-    cin:document.getElementById('rIn').value,
-    cout:document.getElementById('rOut').value,
+    cin:toISO(cinVal),
+    cout:toISO(coutVal),
     reason, note,
     emp:currentEmp.email,empName:currentEmp.name,
     managerEmail:currentEmp.managerEmail,managerName:currentEmp.managerName,
