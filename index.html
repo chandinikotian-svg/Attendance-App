@@ -670,7 +670,7 @@ function renderClockRow(){
     row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button>';
     const sr=document.getElementById('statsRow');if(sr)sr.style.display='none';
   }else{
-    row.innerHTML='<button class="clock-out-full" onclick="handleClock()"><span class="clock-in-label">Clock Out</span></button>';
+    row.innerHTML='<button class="clock-out-full" onclick="handleClock()"><div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span class="clock-in-label">Clock Out</span><span id="timerDisp" style="font-size:13px;font-weight:500;opacity:0.85;letter-spacing:1px">00:00:00</span><span style="font-size:11px;opacity:0.7">✓ '+fmt(clockInTime)+'</span></div></button>';
     const sr=document.getElementById('statsRow');
     if(sr){
       sr.style.display='flex';
