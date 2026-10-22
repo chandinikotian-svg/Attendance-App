@@ -225,7 +225,7 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
     </div>
   </div>
   <div class="nav" id="mainNav">
-    <button class="nav-btn active" onclick="showPane('clock')">Clock</button>
+    <button class="nav-btn active" onclick="showPane('clock')">Home</button>
     <button class="nav-btn" onclick="showPane('log')">My Log</button>
     <button class="nav-btn" onclick="showPane('requests')">Requests <span class="nbadge" id="reqBadge" style="display:none">0</span></button>
     <button class="nav-btn" id="inboxNavBtn" onclick="showPane('inbox')" style="display:none">Inbox <span class="nbadge" id="inboxBadge" style="display:none">0</span></button>
@@ -254,6 +254,25 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <div class="stat"><div class="stat-label">Clock-in</div><div class="stat-val yellow" id="statCin" style="font-size:14px">--:--</div></div>
     </div>
 
+    <!-- Quick Actions -->
+    <div style="padding:20px 16px 8px;">
+      <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:1px;margin-bottom:14px;">QUICK ACTIONS</div>
+      <div style="display:flex;gap:16px;">
+        <button onclick="showODModal()" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="width:44px;height:44px;background:rgba(255,255,255,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;">🏢</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">Apply<br>On Duty</div>
+        </button>
+        <button onclick="showPane('log')" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="width:44px;height:44px;background:rgba(255,255,255,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;">📋</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">My<br>Log</div>
+        </button>
+        <button onclick="showPane('requests')" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:16px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="width:44px;height:44px;background:rgba(255,255,255,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;">📝</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;text-align:center;">Regularize</div>
+        </button>
+      </div>
+    </div>
+
   </div>
 
   <!-- Log -->
@@ -270,11 +289,7 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
 
   <!-- Requests -->
   <div class="pane" id="pane-requests">
-    <!-- Apply buttons -->
-    <div style="display:flex;gap:10px;padding:14px 16px 0;">
-      <button onclick="showODModal()" style="flex:1;padding:12px;background:#1F2957;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">🏢 Apply On Duty</button>
-    </div>
-    <div style="display:flex;border-bottom:2px solid var(--l-border);margin-top:14px;">
+    <div style="display:flex;border-bottom:2px solid var(--l-border);">
       <button id="reqTabActive" onclick="switchReqTab('active')" style="flex:1;padding:12px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--teal);border-bottom:2px solid var(--teal);margin-bottom:-2px;">My Requests</button>
       <button id="reqTabArchive" onclick="switchReqTab('archive')" style="flex:1;padding:12px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--l-text3);border-bottom:2px solid transparent;margin-bottom:-2px;">Archive</button>
     </div>
