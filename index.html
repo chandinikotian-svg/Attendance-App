@@ -1072,14 +1072,32 @@ function switchReqTab(tab){
 
 async function renderRequests(){
   if(!currentEmp)return;
-  const reqs=await listGet('requests');
-  const myReqs=reqs.filter(r=>r.emp===currentEmp.email).sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
-  const pending=myReqs.filter(r=>r.status==='pending').length;
+  // Always fetch fresh from GAS
+  try{
+    const gasReqs=await gasGet('getRequests',currentEmp.email);
+    if(gasReqs&&Array.isArray(gasReqs)){lsS('requests_list',gasReqs);}
+  }catch{}
+  const reqs=lsG('requests_list')||[];
+  const allMyReqs=reqs.filter(r=>r.emp===currentEmp.email).sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
+  const pending=allMyReqs.filter(r=>(r.status||'').toLowerCase()==='pending').length;
   const badge=document.getElementById('reqBadge');
-  badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;
+  if(badge){badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;}
   const el=document.getElementById('reqList');
+  const isActive=_reqTab==='active';
+  const myReqs=allMyReqs.filter(r=>{
+    const s=(r.status||'').toLowerCase().trim();
+    return isActive ? s==='pending' : (s==='approved'||s==='rejected'||s==='cancelled');
+  });
   if(!myReqs.length){el.innerHTML='<div class="empty"><div class="empty-icon">'+(isActive?'📋':'🗂️')+'</div>'+(isActive?'No pending requests':'No archived requests')+'</div>';return;}
-  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+((r.status||'').toLowerCase()==='approved'?'Approved ✓':(r.status||'').toLowerCase()==='rejected'?'Rejected ✗':(r.status||'').toLowerCase()==='cancelled'?'Cancelled ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+fmtTime(r.cin)+' → '+fmtTime(r.cout)+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500;font-style:normal">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="req-mgr">Sent to '+r.managerName+'</div>'+(String(r.status).toLowerCase()==="pending"?'<button onclick="cancelRequest(\''+r.id+'\')" style="font-size:11px;color:#E53935;background:none;border:1px solid #E53935;border-radius:6px;padding:3px 10px;cursor:pointer;font-weight:600">Cancel</button>':'')+'</div></div>').join('');
+  el.innerHTML=myReqs.map(r=>{
+    const s=(r.status||'').toLowerCase();
+    const badge=s==='approved'?'Approved ✓':s==='rejected'?'Rejected ✗':s==='cancelled'?'Cancelled ✗':'Pending ⏳';
+    const badgeClass=s==='approved'?'s-approved':s==='rejected'?'s-rejected':s==='cancelled'?'s-cancelled':'s-pending';
+    const allEntries=lsG('entries_list')||[];
+    const pairs=allEntries.filter(e=>e.emp===currentEmp.email&&String(e.date).substring(0,10)===String(r.date).substring(0,10)&&e.type==='complete'&&e.ci&&e.co).sort((a,b)=>new Date(a.ci)-new Date(b.ci)).map(e=>fmt(new Date(e.ci))+' → '+fmt(new Date(e.co)));
+    const timesStr=pairs.length?pairs.join(' | '):(r.allPairs||(fmtTime(r.cin)+' → '+fmtTime(r.cout)));
+    return '<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge '+badgeClass+'">'+badge+'</span></div><div class="req-detail">'+timesStr+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="req-mgr">Sent to '+r.managerName+'</div>'+(s==='pending'?'<button onclick="cancelRequest(''+r.id+'')" style="font-size:11px;color:#E53935;background:none;border:1px solid #E53935;border-radius:6px;padding:3px 10px;cursor:pointer;font-weight:600">Cancel</button>':'')+'</div></div>';
+  }).join('');
 }
 
 // ── INBOX (Manager) ───────────────────────────────────────
