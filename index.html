@@ -443,6 +443,116 @@ const ORG={
 const MANAGERS=new Set(Object.values(ORG).map(e=>e.managerEmail).filter(Boolean));
 const ADMINS=new Set(['chandini.kotian@7edge.com']);
 
+// Geofencing
+const OFFICES={
+  Bengaluru:{lat:12.9082,lng:77.5937,radius:150,name:'Vaishnavi BVS Senate, Bengaluru'},
+  Mangaluru:{lat:12.8806,lng:74.8463,radius:100,name:'7EDGE MLR-DC, Mangaluru'}
+};
+const REMOTE_EMPLOYEES=new Set(['ashu.kajekar@7edge.com']);
+const EMP_LOCATION={
+  'ashu.kajekar@7edge.com':'Remote',
+  'nidarshan.k@7edge.com':'Bengaluru',
+  'nagaraja.poojary@7edge.com':'Bengaluru',
+  'ashwath.prabhu@7edge.com':'Mangaluru',
+  'jovitha.pinto@7edge.com':'Mangaluru',
+  'sandhyashri@7edge.com':'Mangaluru',
+  'aishwarya@7edge.com':'Mangaluru',
+  'ranjith.n@7edge.com':'Bengaluru',
+  'akshatha@7edge.com':'Mangaluru',
+  'pooja.shetty@7edge.com':'Mangaluru',
+  'shreelatha@7edge.com':'Mangaluru',
+  'ganesh.rao@7edge.com':'Mangaluru',
+  'murali.r@7edge.com':'Mangaluru',
+  'namratha.shettigar@7edge.com':'Mangaluru',
+  'nishant.narayanan@7edge.com':'Mangaluru',
+  'chandini.kotian@7edge.com':'Mangaluru',
+  'swasthik@7edge.com':'Mangaluru',
+  'gprasad@7edge.com':'Mangaluru',
+  'sthuthi@7edge.com':'Mangaluru',
+  'unnati.kamat@7edge.com':'Mangaluru',
+  'akhilesh.b@7edge.com':'Mangaluru',
+  'ibrahim.khaleel@7edge.com':'Mangaluru',
+  'nishan.kumar@7edge.com':'Mangaluru',
+  'mithali.gatty@7edge.com':'Mangaluru',
+  'nidhi.shashi@7edge.com':'Mangaluru',
+  'goutham.lava@7edge.com':'Mangaluru',
+  'rahul.jain@7edge.com':'Bengaluru',
+  'roopesh.yadava@7edge.com':'Mangaluru',
+  'nishanth.raj@7edge.com':'Bengaluru',
+  'rahul.mallya@7edge.com':'Mangaluru',
+  'arpith.k@7edge.com':'Mangaluru',
+  'vishanth.vishwanath@7edge.com':'Mangaluru',
+  'shantharama.shetty@7edge.com':'Bengaluru',
+  'pearl.pereira@7edge.com':'Mangaluru',
+  'asrith.s@7edge.com':'Bengaluru',
+  'anish.dsouza@7edge.com':'Mangaluru',
+  'rajesh.s@7edge.com':'Mangaluru',
+  'apeksha.a@7edge.com':'Mangaluru',
+  'vijetha.pai@7edge.com':'Mangaluru',
+  'saad.usman@7edge.com':'Mangaluru',
+  'sonal.monis@7edge.com':'Mangaluru',
+  'pawan.acharya@7edge.com':'Mangaluru',
+  'rohan.h@7edge.com':'Mangaluru',
+  'priyanka.gurung@7edge.com':'Mangaluru',
+  'suprith.l@7edge.com':'Bengaluru',
+  'aman.nivedh@7edge.com':'Mangaluru',
+  'clinton.noronha@7edge.com':'Mangaluru',
+  'shrutha.shetty@7edge.com':'Mangaluru',
+  'suhaas.kumar@7edge.com':'Mangaluru',
+  'varun.gavoor@7edge.com':'Mangaluru',
+  'tejas.ravi@7edge.com':'Mangaluru',
+  'angel.agnes@7edge.com':'Mangaluru',
+  'hrithik.alva@7edge.com':'Mangaluru',
+  'sanith.suvarna@7edge.com':'Mangaluru',
+  'karthik.m.shetty@7edge.com':'Mangaluru',
+  'nagaraj.suryavanshi@7edge.com':'Mangaluru',
+  'cutinho.wilfred@7edge.com':'Mangaluru',
+  'sanjeev.kumar@7edge.com':'Mangaluru',
+  'raksha.bh@7edge.com':'Mangaluru',
+  'shreyas.bapat@7edge.com':'Mangaluru',
+  'sagar.gupta@7edge.com':'Mangaluru',
+  'yashodhara.b@7edge.com':'Mangaluru',
+  'ashwitha.d@7edge.com':'Mangaluru',
+  'dilli.babu@7edge.com':'Mangaluru',
+  'shashank.s@7edge.com':'Bengaluru',
+  'abhay.kumar@7edge.com':'Mangaluru',
+  'divyashree.br@7edge.com':'Bengaluru',
+  'suhas.ku@7edge.com':'Mangaluru',
+  'ruby.regi@7edge.com':'Bengaluru',
+  'kunal.lal@7edge.com':'Bengaluru',
+  'pooja.s@7edge.com':'Bengaluru',
+  'akhil.v@7edge.com':'Bengaluru',
+};
+
+function getDistanceMeters(lat1,lng1,lat2,lng2){
+  const R=6371000;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function checkGeofence(callback){
+  const empLoc=EMP_LOCATION[currentEmp?.email];
+  // Remote employees skip geofence check
+  if(!empLoc||empLoc==='Remote'){callback(true,null);return;}
+  const office=OFFICES[empLoc];
+  if(!office){callback(true,null);return;}
+  if(!navigator.geolocation){callback(true,null);return;}
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const dist=getDistanceMeters(pos.coords.latitude,pos.coords.longitude,office.lat,office.lng);
+      const inside=dist<=office.radius;
+      callback(inside,{dist:Math.round(dist),office:office.name,radius:office.radius});
+    },
+    err=>{
+      // If location denied, allow clock-in but warn
+      callback(true,null);
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
+  );
+}
+
 let db=null,currentEmp=null,clockedIn=false,clockInTime=null,durTimer=null;
 
 async function init(){
@@ -710,7 +820,27 @@ function tickTimer(){
 function pad(n){return String(n).padStart(2,'0');}
 
 async function handleClock(){
+  // Geofence check on clock-in
   if(!clockedIn){
+    checkGeofence((inside,info)=>{
+      if(!inside&&info){showGeoWarning(info,()=>doClockIn());}
+      else{doClockIn();}
+    });
+    return;
+  }
+  doClockOut();
+}
+
+function showGeoWarning(info,onProceed){
+  const backdrop=document.createElement('div');
+  backdrop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+  backdrop.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2)"><div style="font-size:36px;margin-bottom:12px">📍</div><div style="font-size:17px;font-weight:700;color:#E53935;margin-bottom:8px">Outside Office Radius</div><div style="font-size:13px;color:#555;margin-bottom:6px">You are <strong>${info.dist}m</strong> away from</div><div style="font-size:13px;color:#1F2957;font-weight:600;margin-bottom:6px">${info.office}</div><div style="font-size:12px;color:#888;margin-bottom:20px">Allowed radius: ${info.radius}m</div><div style="display:flex;gap:10px;"><button id="geoCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button><button id="geoProceed" style="flex:1;padding:12px;border-radius:10px;border:none;background:#E53935;font-size:14px;font-weight:600;cursor:pointer;color:#fff">Clock In Anyway</button></div></div>`;
+  document.body.appendChild(backdrop);
+  document.getElementById('geoCancel').onclick=()=>backdrop.remove();
+  document.getElementById('geoProceed').onclick=()=>{backdrop.remove();onProceed();};
+}
+
+async function doClockIn(){
     clockedIn=true;clockInTime=new Date();
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
     const isLate=cinMins>SHIFT_START_MINS;
@@ -723,7 +853,9 @@ async function handleClock(){
     renderLog();
     if(isLate){const lb=cinMins-SHIFT_START_MINS;showToast('Clocked in '+(Math.floor(lb/60)>0?Math.floor(lb/60)+'h ':'')+lb%60+'m late');}
     else showToast('Clocked in at '+fmt(clockInTime)+' — on time');
-  }else{
+}
+
+async function doClockOut(){
     const out=new Date();
     const hrs=+((out-clockInTime)/3600000).toFixed(2);
     const cinMins=clockInTime.getHours()*60+clockInTime.getMinutes();
@@ -763,7 +895,6 @@ async function handleClock(){
     renderClockRow();
     showToast('Clocked out · '+Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m recorded');
     setTimeout(()=>renderLog(), 1500);
-  }
 }
 
 async function loadSession(){
