@@ -453,10 +453,13 @@ async function init(){
       managerEmail:emp.managerEmail,
       isManager:MANAGERS.has(saved.email)
     };
+    // Hide login, show app immediately — no flicker
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
     showApp();
     return;
   }
-  // Show login screen immediately
+  // No saved session — show login
   document.getElementById('loginScreen').style.display='flex';
   initGoogleSignIn();
 }
@@ -468,6 +471,7 @@ function initGoogleSignIn(){
   google.accounts.id.initialize({
     client_id:GOOGLE_CLIENT_ID,
     callback:handleGoogleLogin,
+    auto_select:false,
     auto_select:false,
     ux_mode:'popup'
   });
