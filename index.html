@@ -1016,6 +1016,19 @@ async function submitReg(){
   renderLog();renderRequests();
 }
 
+async function cancelRequest(id){
+  if(!confirm('Cancel this regularization request?'))return;
+  // Remove from localStorage
+  const l=lsG('requests_list')||[];
+  const filtered=l.filter(r=>r.id!==id);
+  lsS('requests_list',filtered);
+  // Update status to cancelled in GAS
+  const params=new URLSearchParams({action:'updateRequest',id,status:'cancelled'});
+  fetch(GAS+'?'+params.toString(),{method:'GET',mode:'cors',redirect:'follow'}).catch(()=>{});
+  showToast('Request cancelled');
+  renderRequests();
+}
+
 async function renderRequests(){
   if(!currentEmp)return;
   const reqs=await listGet('requests');
@@ -1025,7 +1038,7 @@ async function renderRequests(){
   badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;
   const el=document.getElementById('reqList');
   if(!myReqs.length){el.innerHTML='<div class="empty">No regularization requests yet.</div>';return;}
-  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+(r.status==='approved'?'Approved ✓':r.status==='rejected'?'Rejected ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+fmtTime(r.cin)+' → '+fmtTime(r.cout)+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500;font-style:normal">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div class="req-mgr" style="margin-top:4px">Sent to '+r.managerName+'</div></div>').join('');
+  el.innerHTML=myReqs.map(r=>'<div class="req-card"><div class="req-top"><div class="req-date">'+fmtDate(r.date)+'</div><span class="req-badge s-'+r.status+'">'+(r.status==='approved'?'Approved ✓':r.status==='rejected'?'Rejected ✗':'Pending ⏳')+'</span></div><div class="req-detail">'+fmtTime(r.cin)+' → '+fmtTime(r.cout)+'</div><div class="req-reason" style="margin-top:4px"><span style="font-weight:500;font-style:normal">'+r.reason+'</span>'+(r.note?'<br><span style="color:var(--l-text3)">'+r.note+'</span>':'')+'</div>'+(r.mgrComment?'<div class="req-mgr" style="margin-top:6px;font-style:italic;color:var(--teal)">Manager: "'+r.mgrComment+'"</div>':'')+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="req-mgr">Sent to '+r.managerName+'</div>'+(r.status==="pending"?'<button onclick="cancelRequest(\''+r.id+'\')" style="font-size:11px;color:#E53935;background:none;border:1px solid #E53935;border-radius:6px;padding:3px 10px;cursor:pointer;font-weight:600">Cancel</button>':'')+'</div></div>').join('');
 }
 
 // ── INBOX (Manager) ───────────────────────────────────────
