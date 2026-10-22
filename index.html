@@ -1167,14 +1167,16 @@ async function listAdd(k,v){
   const l = lsG(k+'_list')||[];
   l.unshift(item);
   lsS(k+'_list',l);
-  // Send to GAS — wait for it so data is in sheet before next read
+  // Send to GAS once only
   const action = k==='entries'?'addEntry': k==='requests'?'addRequest':'addEntry';
-  try{ await gasGet(action+'&'+new URLSearchParams(item).toString(), currentEmp?.email||''); }catch{}
-  // Actually use proper GET with all params
   try{
     const params = Object.keys(item).map(key=>encodeURIComponent(key)+'='+encodeURIComponent(item[key])).join('&');
-    await fetch(GAS+'?action='+action+'&'+params, {method:'GET', mode:'cors', redirect:'follow'});
-  }catch{}
+    const r = await fetch(GAS+'?action='+action+'&'+params, {method:'GET', mode:'cors', redirect:'follow'});
+    const d = await r.text();
+    console.log('✅ GAS '+action+':', d);
+  }catch(e){
+    console.warn('GAS save failed:', e);
+  }
 }
 
 async function listUpdate(k,id,updates){
