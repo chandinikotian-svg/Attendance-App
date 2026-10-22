@@ -467,9 +467,7 @@ function initGoogleSignIn(){
   if(typeof google==='undefined'){return;}
   google.accounts.id.initialize({
     client_id:GOOGLE_CLIENT_ID,
-    callback:handleGoogleLogin,
-    auto_select:false,
-    ux_mode:'popup'
+    callback:handleGoogleLogin
   });
 }
 
