@@ -745,12 +745,10 @@ async function handleClock(){
     const outSession={on:false,emp:currentEmp.email,email:currentEmp.email};
     lsS('clocksession',outSession);
     gasPost({action:'setSession',...outSession}).catch(()=>{});
-    clockedIn=false;clearInterval(durTimer);durTimer=null;
-    document.getElementById('hrsWorked').textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
-    document.getElementById('statsRow').style.display='none';
+    clockedIn=false;clearInterval(durTimer);durTimer=null;clockInTime=null;
+    const hw=document.getElementById('hrsWorked');if(hw)hw.textContent=Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m';
     renderClockRow();
     showToast('Clocked out · '+Math.floor(hrs)+'h '+Math.round((hrs%1)*60)+'m recorded');
-    // Re-render log after short delay to get fresh GAS data
     setTimeout(()=>renderLog(), 1500);
   }
 }
