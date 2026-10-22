@@ -1016,17 +1016,32 @@ async function submitReg(){
   renderLog();renderRequests();
 }
 
-async function cancelRequest(id){
-  if(!confirm('Cancel this regularization request?'))return;
-  // Remove from localStorage
-  const l=lsG('requests_list')||[];
-  const filtered=l.filter(r=>r.id!==id);
-  lsS('requests_list',filtered);
-  // Update status to cancelled in GAS
-  const params=new URLSearchParams({action:'updateRequest',id,status:'cancelled'});
-  fetch(GAS+'?'+params.toString(),{method:'GET',mode:'cors',redirect:'follow'}).catch(()=>{});
-  showToast('Request cancelled');
-  renderRequests();
+function cancelRequest(id){
+  // Custom confirm dialog
+  const backdrop=document.createElement('div');
+  backdrop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
+  backdrop.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:300px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="font-size:18px;font-weight:700;color:#1F2957;margin-bottom:8px">Cancel Request?</div>
+      <div style="font-size:14px;color:#666;margin-bottom:20px">Do you want to cancel this regularization request?</div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button id="cancelNo" style="flex:1;padding:12px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;font-size:14px;font-weight:600;cursor:pointer;color:#333">No, Keep it</button>
+        <button id="cancelYes" style="flex:1;padding:12px;border-radius:10px;border:none;background:#E53935;font-size:14px;font-weight:600;cursor:pointer;color:#fff">Yes, Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  document.getElementById('cancelNo').onclick=()=>backdrop.remove();
+  document.getElementById('cancelYes').onclick=()=>{
+    backdrop.remove();
+    // Remove from localStorage
+    const l=lsG('requests_list')||[];
+    lsS('requests_list',l.filter(r=>r.id!==id));
+    // Update in GAS
+    const params=new URLSearchParams({action:'updateRequest',id,status:'cancelled'});
+    fetch(GAS+'?'+params.toString(),{method:'GET',mode:'cors',redirect:'follow'}).catch(()=>{});
+    showToast('Request cancelled');
+    renderRequests();
+  };
 }
 
 async function renderRequests(){
