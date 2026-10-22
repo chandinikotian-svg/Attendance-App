@@ -999,10 +999,16 @@ async function submitReg(){
   const cinVal=document.getElementById('rIn').value;
   const coutVal=document.getElementById('rOut').value;
   const toISO=(t)=>{if(!t)return'';const[h,m]=t.split(':');const d=new Date();d.setHours(+h,+m,0,0);return d.toISOString();};
+  // Get all entries for this date
+  const allEntries=lsG('entries_list')||[];
+  const dayEntries=allEntries.filter(e=>e.emp===currentEmp.email&&String(e.date).substring(0,10)===modalDate&&e.type==='complete'&&e.ci&&e.co);
+  dayEntries.sort((a,b)=>new Date(a.ci)-new Date(b.ci));
+  const allPairs=dayEntries.map(e=>fmt(new Date(e.ci))+' → '+fmt(new Date(e.co))).join(' | ');
   await listAdd('requests',{
     id:Date.now().toString(),date:modalDate,
     cin:toISO(cinVal),
     cout:toISO(coutVal),
+    allPairs:allPairs||'',
     reason, note,
     emp:currentEmp.email,empName:currentEmp.name,
     managerEmail:currentEmp.managerEmail,managerName:currentEmp.managerName,
@@ -1072,7 +1078,7 @@ async function renderInbox(){
       html+='<div class="inbox-card" id="inbox-'+r.id+'" data-reqid="'+r.id+'">';
       const displayName = r.empName && r.empName!=='undefined' ? r.empName : (ORG[r.emp]?.name || r.emp || 'Unknown');
       html+='<div class="inbox-top"><div><div class="inbox-emp">'+displayName+'</div><div class="inbox-date">'+fmtDate(r.date)+'</div></div><span class="req-badge s-pending">Pending</span></div>';
-      html+='<div class="inbox-times">'+fmtTime(r.cin)+' → '+fmtTime(r.cout)+'</div>';
+      html+='<div class="inbox-times">'+(r.allPairs?r.allPairs:(fmtTime(r.cin)+' → '+fmtTime(r.cout)))+'</div>';
       html+='<div class="inbox-reason"><strong>'+r.reason+'</strong>'+(r.note?'<br><span style="font-weight:400;font-style:normal;color:var(--l-text3)">'+r.note+'</span>':'')+'</div>';
       html+='<textarea class="inbox-comment" id="comment-'+r.id+'" placeholder="Add a comment (optional)…" rows="2"></textarea>';
       html+='<div class="inbox-actions"><button class="btn-approve" onclick="handleInbox(\''+r.id+'\',\'approved\')">✓ Approve</button><button class="btn-reject" onclick="handleInbox(\''+r.id+'\',\'rejected\')">✗ Reject</button></div>';
