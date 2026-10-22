@@ -842,7 +842,7 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
     return s+hrs;
   },0);
   const isToday=key===today();
-  const inProgress=isToday&&clockedIn&&clockInTime&&!completeEntries.length;
+  const inProgress=isToday&&clockedIn&&clockInTime;
 
   // No entries and not currently clocked in
   if(!completeEntries.length&&!inProgress){
@@ -859,7 +859,7 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
   const firstEntry2=completeEntries[0];
   const lastEntry2=completeEntries[completeEntries.length-1];
   const firstCi=firstEntry2?fmt(new Date(firstEntry2.ci)):(inProgress?fmt(new Date(clockInTime)):'');
-  const lastCo=lastEntry2?fmt(new Date(lastEntry2.co)):(inProgress?'ongoing':'');
+  const lastCo=inProgress?'ongoing':(lastEntry2?fmt(new Date(lastEntry2.co)):'');
 
   const fmtHrs=(h)=>Math.floor(h)+'h '+Math.round((h%1)*60)+'m';
   const effHrs=inProgress
