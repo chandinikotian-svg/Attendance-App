@@ -875,7 +875,7 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
 
   let html='<div class="log-row">';
   html+='<div><div class="row-date">'+label+'</div>';
-  if(firstCi)html+='<div class="row-date-sub" style="color:#1A7A4A">↙ '+firstCi+(lastCo?' <span style="color:#C0392B">↗ '+lastCo+'</span>':'')+'</div>';
+  if(firstCi)html+='<div class="row-date-sub" style="color:#1A7A4A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↙ '+firstCi+(lastCo?' <span style="color:#C0392B">↗ '+lastCo+'</span>':'')+'</div>';
   html+='</div>';
   html+='<div><div class="vis-wrap"><div class="vis-fill" style="width:'+pct+'%"></div></div></div>';
   html+='<div class="col-r"><span class="eff '+(isLate?'late':'good')+'">'+effHrs+'</span></div>';
