@@ -839,7 +839,12 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
 
   // Complete entries for this day
   const completeEntries=entries.filter(e=>e.ci&&e.co&&e.type!=='inprogress');
-  const totalHrs=completeEntries.reduce((s,e)=>s+(parseFloat(e.hrs)||0),0);
+  // Calculate total hours from actual ci/co times, not stored hrs field
+  const totalHrs=completeEntries.reduce((s,e)=>{
+    const ci=new Date(e.ci), co=new Date(e.co);
+    if(isNaN(ci)||isNaN(co)||co<=ci) return s;
+    return s+(co-ci)/3600000;
+  },0);
   const isToday=key===today();
   const inProgress=isToday&&clockedIn&&clockInTime&&!completeEntries.length;
 
@@ -853,13 +858,17 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
   const isLate=(firstEntry?.late)||(cinMins>SHIFT_START_MINS);
   const pct=Math.min(100,(totalHrs/SHIFT_HOURS)*100);
 
-  // First clock-in / last clock-out for visual bar
-  const firstCi=firstEntry?fmt(new Date(firstEntry.ci)):(inProgress?fmt(new Date(clockInTime)):'');
-  const lastCo=completeEntries.length?fmt(new Date(completeEntries[completeEntries.length-1].co)):(inProgress?'ongoing':'');
+  // Sort entries by clock-in time
+  completeEntries.sort((a,b)=>new Date(a.ci)-new Date(b.ci));
+  const firstEntry2=completeEntries[0];
+  const lastEntry2=completeEntries[completeEntries.length-1];
+  const firstCi=firstEntry2?fmt(new Date(firstEntry2.ci)):(inProgress?fmt(new Date(clockInTime)):'');
+  const lastCo=lastEntry2?fmt(new Date(lastEntry2.co)):(inProgress?'ongoing':'');
 
+  const fmtHrs=(h)=>Math.floor(h)+'h '+Math.round((h%1)*60)+'m';
   const effHrs=inProgress
-    ?(()=>{const ms=new Date()-new Date(clockInTime)+totalHrs*3600000;return Math.floor(ms/3600000)+'h '+Math.floor((ms%3600000)/60000)+'m';})()
-    :Math.floor(totalHrs)+'h '+Math.round((totalHrs%1)*60)+'m';
+    ?(()=>{const ms=(new Date()-new Date(clockInTime))/3600000;return fmtHrs(totalHrs+ms);})()
+    :fmtHrs(totalHrs);
 
   // Store entries in global map for modal popup
   if(!window._dayEntries)window._dayEntries={};
