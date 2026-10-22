@@ -309,18 +309,10 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <div style="font-size:13px;color:var(--l-text);line-height:1.5;">Raise regularization request to exempt this day from penalization policy.</div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-      <div>
-        <div style="font-size:12px;font-weight:500;color:var(--l-text2);margin-bottom:5px;">Clock-in time</div>
-        <div id="rInDisplay" style="padding:10px 12px;border:1px solid var(--l-border);border-radius:8px;font-size:14px;color:var(--l-text);background:var(--l-surface2);">Not recorded</div>
-        <input type="hidden" id="rIn">
-      </div>
-      <div>
-        <div style="font-size:12px;font-weight:500;color:var(--l-text2);margin-bottom:5px;">Clock-out time</div>
-        <div id="rOutDisplay" style="padding:10px 12px;border:1px solid var(--l-border);border-radius:8px;font-size:14px;color:var(--l-text);background:var(--l-surface2);">Not recorded</div>
-        <input type="hidden" id="rOut">
-      </div>
-    </div>
+    <input type="hidden" id="rIn">
+    <input type="hidden" id="rOut">
+    <input type="hidden" id="rInDisplay">
+    <input type="hidden" id="rOutDisplay">
 
     <!-- Reason dropdown -->
     <div class="field" style="margin-bottom:14px;">
