@@ -804,7 +804,7 @@ async function renderLog(){
 function _renderLogWithData(entries,reqs){
   // Only show complete entries with valid clock-out
   const myEntries=entries.filter(e=>e.emp===currentEmp.email&&e.type==='complete'&&e.ci&&e.co&&String(e.co)!=='null');
-  const myReqs=reqs.filter(r=>r.emp===currentEmp.email);
+  const myReqs=reqs.filter(r=>r.emp===currentEmp.email&&(r.status||"").toLowerCase()!=="cancelled");
   const approvedDates=new Set(myReqs.filter(r=>r.status==='approved').map(r=>r.date));
   const pendingDates=new Set(myReqs.filter(r=>r.status==='pending').map(r=>r.date));
   // Group entries by date — multiple entries per day
