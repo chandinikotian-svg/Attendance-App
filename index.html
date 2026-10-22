@@ -1338,64 +1338,52 @@ function showReportsModal(){
   if(!currentEmp?.isAdmin)return;
   const existing=document.getElementById('reportsModal');
   if(existing)existing.remove();
-
   const modal=document.createElement('div');
   modal.id='reportsModal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:center;justify-content:center;';
   modal.innerHTML=`
-    <div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
       <div style="font-size:18px;font-weight:700;color:#1F2957;margin-bottom:4px">📊 Download Reports</div>
-      <div style="font-size:13px;color:#666;margin-bottom:20px">Select report type and date range</div>
-      <div style="margin-bottom:14px">
-        <label style="font-size:12px;font-weight:600;color:#444;display:block;margin-bottom:6px">From Date</label>
-        <input type="date" id="reportFrom" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;">
-      </div>
-      <div style="margin-bottom:20px">
-        <label style="font-size:12px;font-weight:600;color:#444;display:block;margin-bottom:6px">To Date</label>
-        <input type="date" id="reportTo" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;">
+      <div style="font-size:13px;color:#666;margin-bottom:20px">All employees • Excel (.xlsx) format</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:#444;display:block;margin-bottom:6px">From Date</label>
+          <input type="date" id="reportFrom" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:#444;display:block;margin-bottom:6px">To Date</label>
+          <input type="date" id="reportTo" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">
+        </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-        <button onclick="downloadAttendanceReport()" style="padding:14px;background:#1F2957;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">⬇️ Attendance Report (CSV)</button>
-        <button onclick="downloadRegularizationReport()" style="padding:14px;background:var(--teal);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">⬇️ Regularization Report (CSV)</button>
+        <button onclick="downloadAttendanceReport()" style="padding:14px;background:#1F2957;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">⬇️ Attendance Report</button>
+        <button onclick="downloadRegularizationReport()" style="padding:14px;background:var(--teal);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">⬇️ Regularization Report</button>
       </div>
-      <button onclick="document.getElementById('reportsModal').remove()" style="width:100%;padding:12px;background:#f5f5f5;color:#333;border:none;border-radius:10px;font-size:14px;cursor:pointer;">Close</button>
+      <button onclick="document.getElementById('reportsModal').remove()" style="width:100%;padding:12px;background:#f5f5f5;color:#333;border:none;border-radius:10px;font-size:14px;cursor:pointer;">Cancel</button>
     </div>`;
-
-  // Set default dates — current month
   const now=new Date();
   const firstDay=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
-  const today2=now.toISOString().split('T')[0];
   document.body.appendChild(modal);
   document.getElementById('reportFrom').value=firstDay;
-  document.getElementById('reportTo').value=today2;
+  document.getElementById('reportTo').value=now.toISOString().split('T')[0];
 }
 
 async function downloadAttendanceReport(){
   const from=document.getElementById('reportFrom').value;
   const to=document.getElementById('reportTo').value;
   if(!from||!to){showToast('Please select date range');return;}
-  showToast('Fetching attendance data...');
-
-  // Fetch all entries from GAS for all employees
+  showToast('Fetching data from Google Sheet...');
   try{
     const r=await fetch(GAS+'?action=getAllEntries&from='+from+'&to='+to,{method:'GET',mode:'cors',redirect:'follow'});
     const data=await r.json();
     if(data&&Array.isArray(data)&&data.length){
-      generateCSV(data, from, to, 'attendance');
+      generateXLSX(data, from, to, 'attendance');
     } else {
-      // Fallback: use local entries + fetch per employee is too slow
-      // Use all entries from GAS with date filter
-      showToast('No data found for selected range');
+      showToast('No attendance data found for selected range');
     }
   }catch(e){
-    // Fallback to localStorage entries
-    const entries=lsG('entries_list')||[];
-    const filtered=entries.filter(e=>e.date>=from&&e.date<=to&&e.type==='complete');
-    if(filtered.length){
-      generateCSV(filtered, from, to, 'attendance');
-    } else {
-      showToast('No data found for selected range');
-    }
+    console.error(e);
+    showToast('Error fetching data. Check console.');
   }
 }
 
@@ -1403,53 +1391,86 @@ async function downloadRegularizationReport(){
   const from=document.getElementById('reportFrom').value;
   const to=document.getElementById('reportTo').value;
   if(!from||!to){showToast('Please select date range');return;}
-  showToast('Fetching regularization data...');
-
+  showToast('Fetching data from Google Sheet...');
   try{
     const r=await fetch(GAS+'?action=getAllRequests&from='+from+'&to='+to,{method:'GET',mode:'cors',redirect:'follow'});
     const data=await r.json();
     if(data&&Array.isArray(data)&&data.length){
-      generateCSV(data, from, to, 'regularization');
+      generateXLSX(data, from, to, 'regularization');
     } else {
-      showToast('No data found for selected range');
+      showToast('No regularization data found for selected range');
     }
   }catch(e){
     showToast('Error fetching data. Please try again.');
   }
 }
 
-function generateCSV(data, from, to, type){
-  let csv='';
+function generateXLSX(data, from, to, type){
+  // Load SheetJS from CDN
+  if(typeof XLSX === 'undefined'){
+    const script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload=()=>generateXLSX(data, from, to, type);
+    document.head.appendChild(script);
+    return;
+  }
+
+  let rows=[];
+  let filename='';
+
   if(type==='attendance'){
-    csv='Employee,Email,Date,Clock In,Clock Out,Hours Worked,Arrival\n';
+    filename=`7EDGE_Attendance_${from}_to_${to}.xlsx`;
+    rows=[['Employee Name','Email','Date','Clock In','Clock Out','Hours Worked','Status']];
     data.forEach(e=>{
-      const empName=ORG[e.emp]?.name||e.emp;
+      const empName=ORG[e.emp]?.name||e.emp||'Unknown';
       const ci=e.ci?fmt(new Date(e.ci)):'';
       const co=e.co?fmt(new Date(e.co)):'';
-      const hrs=e.hrs?parseFloat(e.hrs).toFixed(2):'0';
-      const arrival=e.late?'Late':'On Time';
-      csv+=`"${empName}","${e.emp}","${e.date}","${ci}","${co}","${hrs}","${arrival}"\n`;
+      const hrs=e.hrs?parseFloat(e.hrs).toFixed(2):'0.00';
+      const status=e.late?'Late':'On Time';
+      rows.push([empName, e.emp||'', e.date||'', ci, co, hrs, status]);
     });
   } else {
-    csv='Employee,Email,Date,Clock In,Clock Out,Reason,Note,Manager,Status,Manager Comment\n';
+    filename=`7EDGE_Regularization_${from}_to_${to}.xlsx`;
+    rows=[['Employee Name','Email','Date','Clock In','Clock Out','Reason','Note','Manager','Status','Manager Comment']];
     data.forEach(r=>{
       const ci=r.cin?fmtTime(r.cin):'';
       const co=r.cout?fmtTime(r.cout):'';
-      csv+=`"${r.empName||r.emp}","${r.emp}","${r.date}","${ci}","${co}","${r.reason||''}","${r.note||''}","${r.managerName||''}","${r.status||''}","${r.mgrComment||''}"\n`;
+      rows.push([r.empName||r.emp||'', r.emp||'', r.date||'', ci, co, r.reason||'', r.note||'', r.managerName||'', r.status||'', r.mgrComment||'']);
     });
   }
 
-  // Download CSV
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`7EDGE_${type}_${from}_to_${to}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Report downloaded!');
+  // Create workbook
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+
+  // Style header row
+  const headerStyle={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F2957'}},alignment:{horizontal:'center'}};
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let c=range.s.c;c<=range.e.c;c++){
+    const cell=XLSX.utils.encode_cell({r:0,c});
+    if(ws[cell])ws[cell].s=headerStyle;
+  }
+
+  // Set column widths
+  ws['!cols']=[{wch:25},{wch:30},{wch:12},{wch:12},{wch:12},{wch:20},{wch:20},{wch:20},{wch:12},{wch:20}];
+
+  XLSX.utils.book_append_sheet(wb, ws, type==='attendance'?'Attendance':'Regularization');
+
+  // Add metadata sheet
+  const metaWs=XLSX.utils.aoa_to_sheet([
+    ['7EDGE Attendance App'],
+    ['Report Type', type==='attendance'?'Attendance Report':'Regularization Report'],
+    ['Date Range', from+' to '+to],
+    ['Generated On', new Date().toLocaleDateString('en-IN')],
+    ['Total Records', data.length],
+  ]);
+  XLSX.utils.book_append_sheet(wb, metaWs, 'Info');
+
+  XLSX.writeFile(wb, filename);
+  showToast('✅ Report downloaded!');
   document.getElementById('reportsModal').remove();
 }
+
 
 init();
 </script>
