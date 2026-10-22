@@ -839,7 +839,7 @@ function buildLogRow({key,d,dow,entries,approved,pending}){
   const completeEntries=entries.filter(e=>e.ci&&e.co&&e.type!=='inprogress');
   const totalHrs=completeEntries.reduce((s,e)=>s+(parseFloat(e.hrs)||0),0);
   const isToday=key===today();
-  const inProgress=isToday&&clockedIn&&clockInTime;
+  const inProgress=isToday&&clockedIn&&clockInTime&&!completeEntries.length;
 
   // No entries and not currently clocked in
   if(!completeEntries.length&&!inProgress){
@@ -882,11 +882,16 @@ function openLogModal(btn){
   const label=btn.dataset.label;
   if(_activePopup){_activePopup.remove();_activePopup=null;}
 
-  // Get entries from localStorage immediately
+  // Get entries for THIS specific date from localStorage
   const allLocal=lsG('entries_list')||[];
-  const localEntries=allLocal.filter(e=>e.emp===currentEmp.email&&e.date===date&&e.ci&&e.co&&e.type!=='inprogress');
-  const dayEntries=(window._dayEntries&&window._dayEntries[date])||[];
-  const entries=localEntries.length?localEntries:dayEntries;
+  const entries=allLocal.filter(e=>
+    e.emp===currentEmp.email &&
+    e.date===date &&
+    e.ci && e.co &&
+    e.co!=='null' &&
+    e.type==='complete'
+  );
+  console.log('Entries for',date,':',entries.length, entries);
   const firstCi=entries[0]?.ci||null;
   const lastCo=entries[entries.length-1]?.co||null;
 
@@ -900,11 +905,13 @@ function openLogModal(btn){
     pairsHtml+='<span style="font-size:13px;color:#C0392B;font-weight:500">'+fmt(new Date(e.co))+'</span>';
     pairsHtml+='</div>';
   });
-  if(!entries.length&&clockedIn&&clockInTime){
-    pairsHtml+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0">';
+  // Only show ongoing for today
+  if(date===today()&&clockedIn&&clockInTime){
+    pairsHtml+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--l-border)">';
     pairsHtml+='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1A7A4A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
-    pairsHtml+='<span style="font-size:13px;color:#1A7A4A">'+fmt(new Date(clockInTime))+'</span>';
-    pairsHtml+='<span style="font-size:13px;color:var(--teal)">→ ongoing</span>';
+    pairsHtml+='<span style="font-size:13px;color:#1A7A4A;font-weight:500">'+fmt(new Date(clockInTime))+'</span>';
+    pairsHtml+='<span style="color:var(--l-text3)">→</span>';
+    pairsHtml+='<span style="font-size:13px;color:var(--teal);font-weight:500">ongoing</span>';
     pairsHtml+='</div>';
   }
   if(!pairsHtml)pairsHtml='<div style="font-size:12px;color:var(--l-text3);padding:6px 0">No clock records</div>';
