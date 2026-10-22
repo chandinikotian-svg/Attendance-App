@@ -469,7 +469,6 @@ function initGoogleSignIn(){
     client_id:GOOGLE_CLIENT_ID,
     callback:handleGoogleLogin,
     auto_select:false,
-    auto_select:false,
     ux_mode:'popup'
   });
 }
@@ -484,17 +483,19 @@ function triggerGoogleLogin(){
     },1000);
     return;
   }
-  // Use popup login directly
-  const tmp=document.createElement('div');
-  tmp.style.cssText='position:fixed;opacity:0;pointer-events:none;top:0;left:0';
-  document.body.appendChild(tmp);
-  google.accounts.id.renderButton(tmp,{theme:'outline',size:'large'});
-  setTimeout(()=>{
-    const btn=tmp.querySelector('div[role=button]');
-    if(btn){btn.click();}
-    else{google.accounts.id.prompt();}
-    setTimeout(()=>tmp.remove(),3000);
-  },200);
+  google.accounts.id.prompt(notification=>{
+    if(notification.isNotDisplayed()||notification.isSkippedMoment()){
+      const tmp=document.createElement('div');
+      tmp.style.cssText='position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(tmp);
+      google.accounts.id.renderButton(tmp,{theme:'outline',size:'large'});
+      setTimeout(()=>{
+        const btn=tmp.querySelector('div[role=button]');
+        if(btn)btn.click();
+        else showLoginErr('Pop-up blocked. Please allow pop-ups for this site.');
+      },100);
+    }
+  });
 }
 
 // Init Google when script loads — non-blocking
