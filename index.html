@@ -85,9 +85,7 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
 .clock-cin{font-size:11px;color:var(--teal);margin-top:3px;}
 .clock-in-full{flex:1.6;padding:18px;background:var(--teal);border-radius:16px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;}
 .clock-in-label{font-size:18px;font-weight:700;color:white;}
-.punch-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px;background:transparent;border:1.5px solid rgba(11,173,188,0.4);border-radius:16px;cursor:pointer;}
 .punch-btn svg{width:22px;height:22px;fill:none;stroke:var(--teal);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-.punch-label{font-size:14px;font-weight:600;color:var(--teal);}
 .stats-row{display:flex;gap:10px;padding:14px 18px 0;}
 .stat{flex:1;background:var(--navy2);border-radius:12px;padding:12px;border:1px solid var(--border);}
 .stat-label{font-size:10px;color:var(--text-dimmer);font-weight:500;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
@@ -243,7 +241,6 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
       <button class="clock-in-full" onclick="handleClock()">
         <span class="clock-in-label">Clock in</span>
       </button>
-      <button class="punch-btn" onclick="showToast('Location punch recorded')">
         <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
         <span class="punch-label">Punch</span>
       </button>
@@ -676,10 +673,9 @@ function renderClockRow(){
   if(!row) return;
   row.style.display='flex';
   if(!clockedIn){
-    row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button><button class="punch-btn" onclick="showToast(\'Location punch recorded\')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="punch-label">Punch</span></button>';
+    row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button><button class="
     const sr=document.getElementById('statsRow');if(sr)sr.style.display='none';
   }else{
-    row.innerHTML='<button class="clock-main" onclick="handleClock()"><div class="clock-left out-col"><div class="clock-left-label">Clock Out</div></div><div class="clock-right"><div class="clock-timer" id="timerDisp">00:00:00</div><div class="clock-cin">↙ '+fmt(clockInTime)+'</div></div></button><button class="punch-btn" onclick="showToast(\'Location punch recorded\')"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span class="punch-label">Punch</span></button>';
     document.getElementById('statsRow').style.display='flex';
     document.getElementById('statCin').textContent=fmt(clockInTime);
     startTimer();
