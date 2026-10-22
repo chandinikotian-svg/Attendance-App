@@ -670,7 +670,7 @@ function renderClockRow(){
   if(!row) return;
   row.style.display='flex';
   if(!clockedIn){
-    row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button><button class="
+    row.innerHTML='<button class="clock-in-full" onclick="handleClock()"><span class="clock-in-label">Clock in</span></button>';
     const sr=document.getElementById('statsRow');if(sr)sr.style.display='none';
   }else{
     document.getElementById('statsRow').style.display='flex';
