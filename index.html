@@ -279,6 +279,11 @@ body{background:var(--navy);color:#fff;min-height:100vh;}
         <div class="inbox-sub">Regularization requests from your team</div>
       </div>
     </div>
+    <!-- Take Action / Archive tabs -->
+    <div style="display:flex;border-bottom:2px solid var(--l-border);margin-bottom:0;">
+      <button id="inboxTabAction" onclick="switchInboxTab('action')" style="flex:1;padding:12px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--teal);border-bottom:2px solid var(--teal);margin-bottom:-2px;">Take Action</button>
+      <button id="inboxTabArchive" onclick="switchInboxTab('archive')" style="flex:1;padding:12px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--l-text3);border-bottom:2px solid transparent;margin-bottom:-2px;">Archive</button>
+    </div>
     <div id="inboxList"><div class="empty"><div class="empty-icon">📭</div>No pending requests</div></div>
   </div>
 </div>
@@ -1053,26 +1058,43 @@ async function renderRequests(){
 }
 
 // ── INBOX (Manager) ───────────────────────────────────────
+let _inboxTab='action';
+function switchInboxTab(tab){
+  _inboxTab=tab;
+  const actionBtn=document.getElementById('inboxTabAction');
+  const archiveBtn=document.getElementById('inboxTabArchive');
+  if(actionBtn&&archiveBtn){
+    actionBtn.style.color=tab==='action'?'var(--teal)':'var(--l-text3)';
+    actionBtn.style.borderBottomColor=tab==='action'?'var(--teal)':'transparent';
+    archiveBtn.style.color=tab==='archive'?'var(--teal)':'var(--l-text3)';
+    archiveBtn.style.borderBottomColor=tab==='archive'?'var(--teal)':'transparent';
+  }
+  renderInbox();
+}
+
 async function renderInbox(){
   if(!currentEmp?.isManager)return;
-  // Always fetch fresh from GAS for inbox — need all employees' requests
+  // Always fetch fresh from GAS for inbox
   let myInbox=[];
   try{
     const gasItems=await gasGet('getInbox',currentEmp.email);
-    console.log('📥 Inbox from GAS:',gasItems?.length, gasItems);
     if(gasItems&&Array.isArray(gasItems)){
       myInbox=gasItems.sort((a,b)=>new Date(b.submittedAt||0)-new Date(a.submittedAt||0));
     }
-  }catch(e){
-    console.warn('Inbox fetch failed:',e);
-  }
-  const pending=myInbox.filter(r=>r.status==='pending').length;
+  }catch(e){console.warn('Inbox fetch failed:',e);}
+  const pending=myInbox.filter(r=>(r.status||'').toLowerCase()==='pending').length;
   const badge=document.getElementById('inboxBadge');
   badge.style.display=pending?'inline-flex':'none';badge.textContent=pending;
   const el=document.getElementById('inboxList');
-  if(!myInbox.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div>No requests yet</div>';return;}
-  const pendingReqs=myInbox.filter(r=>r.status==='pending');
-  const doneReqs=myInbox.filter(r=>r.status!=='pending');
+  // Filter by active tab
+  const isAction=_inboxTab==='action';
+  const tabReqs=myInbox.filter(r=>isAction?(r.status||'').toLowerCase()==='pending':(r.status||'').toLowerCase()!=='pending');
+  if(!tabReqs.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">'+(isAction?'📭':'🗂️')+'</div>'+(isAction?'No pending requests':'No archived requests')+'</div>';
+    return;
+  }
+  const pendingReqs=isAction?tabReqs:[];
+  const doneReqs=isAction?[]:tabReqs;
   let html='';
   if(pendingReqs.length){
     pendingReqs.forEach(r=>{
